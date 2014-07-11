@@ -1,4 +1,4 @@
-/*! SkywayJS - v0.0.1 - 2014-07-03 */
+/*! SkywayJS - v0.0.1 - 2014-07-11 */
 
 RTCPeerConnection = null;
 /**
@@ -950,6 +950,8 @@ if (webrtcDetectedBrowser.mozWebRTC) {
     this._dataTransfersTimeout = {};
     this._chunkFileSize = 49152; // [25KB because Plugin] 60 KB Limit | 4 KB for info
     this._requireVideo = true;
+    this._chatSig = true; // Signalling channel chat is true by default.
+    this._chatDC = true; // DataChannel chat is true by default.
 
     this._loadSocket = function (ipSigserver, portSigserver, onSuccess, onError) {
       var socketScript = document.createElement('script');
@@ -2255,9 +2257,173 @@ if (webrtcDetectedBrowser.mozWebRTC) {
     var msgString = JSON.stringify(message);
     console.log('API - [' + (message.target ? message.target : 'server') +
       '] Outgoing message: ' + message.type);
-    this._socket.send(msgString);
+      
+    // If Chat message, determine whether to use Signalling or DataChannel
+    if( message.type == 'chat' ) {
+      // Check if Sig or DC message should be sent.
+      if( this._chatDC ) {
+        // Create a DataChannel format chat message
+        var msgDc = message.data;
+        // Broadcast type
+        if( ! ( 'target' in message ) ) {
+          msgDc = "CHAT|GROUP|" + msgDc;
+          for ( var targetId in this._peerConnections ){
+            _sendDcChat( targetId, msgDc );
+          }
+        } else {
+          // Find target and the DC to use.
+          var targetId = message.target;
+          msgDc = "CHAT|PRIVATE|" + msgDc;
+          _sendDcChat( targetId, msgDc );
+          /*
+          for ( var channel in RTCDataChannels ) {
+            // Ensure we're looping over dc and not other properties
+            if( RTCDataChannels.hasOwnProperty(channel) && RTCDataChannels[channel] ) {
+              var dc = RTCDataChannels[ channel ];
+              if( dc.createId == tid || dc.receiveId == tid ) {
+                dc.send( msgDc );
+                console.log( "Sent DC private message to: " + dc.label + '.' );
+                break;
+              }
+            }
+          }
+          */
+        }
+        // Send sig chat if required.
+        if( this._chatSig ) {
+          this._socket.send(msgString);
+        }
+      } else {
+        // Send sig chat if required.
+        if( this._chatSig ) {
+          this._socket.send(msgString);
+        }
+      }
+    } else {
+      this._socket.send(msgString);
+    }
   };
 
+  /**
+   * Send a chat message via DataChannel
+   *  Checks if DC exists for a peer with targetId.
+   *  If not, create it.
+   *  Send chat message as a string via DC.
+   * @method _sendDcChat
+   * @private
+   * @param {String} targetId The peer id whom this message is meant for.
+   * @param {String} msgDc The chat content to deliver.
+   */
+  Skyway.prototype._sendDcChat = function ( targetId, msgDc ) {
+    var dc;
+    // If DC does not exist, create it
+    var channelInit = this._user.sid + "_" + targetId;
+    var channelRspd = targetId + "_" + this._user.sid;
+    if (!RTCDataChannels[channelInit]) {
+      if(!RTCDataChannels[channelRspd]) {
+        // DC does not exist, create it.
+        _createDataChannel( this._user.sid, targetId, null, null );
+      } else {
+        dc = RTCDataChannels[ channelRspd ];
+      }
+    } else {
+      dc = RTCDataChannels[ channelInit ];
+    }
+
+    if( dc == null ) dc = RTCDataChannels[ channelInit ];
+    // Checking again as dc may not have been finished creating.
+    if( dc != null ) {
+      dc.send( msgDc );
+      console.log( "Sent DC message to: " + targetId + 
+        " via DataChannel " + dc.label + '.' );
+    }
+  }
+
+  /**
+   * Check if a DC event is a chat message.
+   *  If not a chat message, return false.
+   *  If it is, process it into a signalling channel chat message,
+   *  and allow normal chat display to handle it.
+   *
+   * @method _processDcChat
+   * @private
+   * @param {DataChannel} dc DC that provided this chat message.
+   * @param {String} dataStr DC event data of this chat message.
+   */
+  Skyway.prototype._processDcChat = function ( dc, dataStr ) {
+    /* Debugging
+    for (var i = 0; i < dataStr.length; i++) {
+      console.log( dataStr[i] );
+    }
+    /**/
+    var data = dataStr.split( '|', 3 );
+    var msgType = data[ 0 ];
+    msgType = _stripNonAlphanumeric( msgTyp );
+    if( msgType != "CHAT" ) return false;
+    // Get message contents.
+    var msgChat = data[ 2 ];
+    console.log( "Got DataChannel Chat Message:" + msgChat + "." );
+
+    // Get sender's mid from dc.
+    var msgMid = "";
+    if( dc.createId == this._user.sid ) msgMid = dc.receiveId;
+    else msgMid = dc.createId;
+    var msgNick = nickList[ msgMid ].name;
+    console.log( 'Got a ' + data[ 1 ] + ' chat msg from ' + msgMid + ' (' + msgNick + ').' );
+    
+    var chatMsg = "[DC]: " + data[ 2 ];
+    
+    // Create a msg using event.data, message mid.
+    var msg = { type: 'chat', mid: msgMid, nick: msgNick, data: chatMsg };
+    
+    // For private msg, create a target field with our id.
+    if( data[ 1 ] == "PRIVATE" ) msg.target = this._user.sid;
+    
+    _processSingleMsg(msg);
+  }
+
+  /**
+   * Removes non-alphanumeric characters from a string and return it.
+   *
+   * @method _stripNonAlphanumeric
+   * @private
+   * @param {String} str String to check.
+   */
+  Skyway.prototype._stripNonAlphanumeric = function ( str ) {
+    var strOut = "";
+    for (var i = 0; i < str.length; i++) {
+      var curChar = str[i];
+      console.log( i + ":" + curChar + "." );
+      if ( !alphanumeric( curChar ) ) {
+        // If not alphanumeric, do not add to final string.
+        console.log( "Not alphanumeric, not adding." );
+      } else {
+        // If alphanumeric, add it to final string.
+        console.log( "Alphanumeric, so adding." );
+        strOut += curChar;
+      }
+      console.log( "strOut:" + strOut + "." );
+    }
+  
+    return strOut;   
+  }  
+
+  /**
+   * Check if a text string consist of only alphanumeric characters.
+   *  If so, return true.
+   *  If not, return false.
+   *
+   * @method _alphanumeric
+   * @private
+   * @param {String} str String to check.
+   */
+  Skyway.prototype._alphanumeric = function ( str ) {  
+    var letterNumber = /^[0-9a-zA-Z]+$/;  
+    if( str.match(letterNumber) ) return true;
+    else return false;   
+  }  
+  
+  
   /**
    * @method _openChannel
    * @private
@@ -2407,7 +2573,9 @@ if (webrtcDetectedBrowser.mozWebRTC) {
         console.info('======');
         console.log(event.data);
         console.log(typeof event.data);
-        self._dataChannelHandler(event.data, channel_name, self);
+        // Check if it is a Chat, if so, process it for chat display.
+        if( !_processDcChat( dc, event.data ) )
+          self._dataChannelHandler(event.data, channel_name, self);
       };
 
       window.RTCDataChannels[channel_name] = dc;
