@@ -1,4 +1,4 @@
-/*! SkywayJS - v0.0.1 - 2014-07-11 */
+/*! SkywayJS - v0.0.1 - 2014-07-14 */
 
 RTCPeerConnection = null;
 /**
@@ -2263,18 +2263,19 @@ if (webrtcDetectedBrowser.mozWebRTC) {
       // Check if Sig or DC message should be sent.
       if( this._chatDC ) {
         // Create a DataChannel format chat message
-        var msgDc = message.data;
+        // Add nickname.
+        var msgDc = this._user.displayName + '|' + message.data;
         // Broadcast type
         if( ! ( 'target' in message ) ) {
           msgDc = "CHAT|GROUP|" + msgDc;
           for ( var targetId in this._peerConnections ){
-            _sendDcChat( targetId, msgDc );
+            this._sendDcChat( targetId, msgDc );
           }
         } else {
           // Find target and the DC to use.
           var targetId = message.target;
           msgDc = "CHAT|PRIVATE|" + msgDc;
-          _sendDcChat( targetId, msgDc );
+          this._sendDcChat( targetId, msgDc );
           /*
           for ( var channel in RTCDataChannels ) {
             // Ensure we're looping over dc and not other properties
@@ -2356,30 +2357,40 @@ if (webrtcDetectedBrowser.mozWebRTC) {
       console.log( dataStr[i] );
     }
     /**/
-    var data = dataStr.split( '|', 3 );
+    var data = dataStr.split( '|' );
     var msgType = data[ 0 ];
-    msgType = _stripNonAlphanumeric( msgTyp );
+    msgType = this._stripNonAlphanumeric( msgType );
     if( msgType != "CHAT" ) return false;
-    // Get message contents.
-    var msgChat = data[ 2 ];
+    var msgChatType = data[ 1 ];
+    msgChatType = this._stripNonAlphanumeric( msgChatType );
+    var msgNick = data[ 2 ];
+    msgNick = this._stripNonAlphanumeric( msgNick );
+    // Get remaining parts as the message contents.
+      // Get the index of the first char of chat content 
+    var start = 3 + data.slice( 0, 3 ).join('').length;
+    var msgChat = '';
+      // Add all char from start to the end of dataStr.
+      // This method is to allow "|" to appear in the chat message.
+    for( var i = start; i < dataStr.length; i++ ) {
+      msgChat += dataStr[ i ];
+    }
     console.log( "Got DataChannel Chat Message:" + msgChat + "." );
 
     // Get sender's mid from dc.
     var msgMid = "";
     if( dc.createId == this._user.sid ) msgMid = dc.receiveId;
     else msgMid = dc.createId;
-    var msgNick = nickList[ msgMid ].name;
-    console.log( 'Got a ' + data[ 1 ] + ' chat msg from ' + msgMid + ' (' + msgNick + ').' );
+    console.log( 'Got a ' + msgChatType + ' chat msg from ' + msgMid + ' (' + msgNick + ').' );
     
-    var chatMsg = "[DC]: " + data[ 2 ];
+    var chatDisplay = "[DC]: " + msgChat;
     
     // Create a msg using event.data, message mid.
-    var msg = { type: 'chat', mid: msgMid, nick: msgNick, data: chatMsg };
+    var msg = { type: 'chat', mid: msgMid, nick: msgNick, data: chatDisplay };
     
     // For private msg, create a target field with our id.
-    if( data[ 1 ] == "PRIVATE" ) msg.target = this._user.sid;
+    if( msgChatType == "PRIVATE" ) msg.target = this._user.sid;
     
-    _processSingleMsg(msg);
+    this._processSingleMsg(msg);
   }
 
   /**
@@ -2394,7 +2405,7 @@ if (webrtcDetectedBrowser.mozWebRTC) {
     for (var i = 0; i < str.length; i++) {
       var curChar = str[i];
       console.log( i + ":" + curChar + "." );
-      if ( !alphanumeric( curChar ) ) {
+      if ( !this._alphanumeric( curChar ) ) {
         // If not alphanumeric, do not add to final string.
         console.log( "Not alphanumeric, not adding." );
       } else {
@@ -2574,7 +2585,7 @@ if (webrtcDetectedBrowser.mozWebRTC) {
         console.log(event.data);
         console.log(typeof event.data);
         // Check if it is a Chat, if so, process it for chat display.
-        if( !_processDcChat( dc, event.data ) )
+        if( !self._processDcChat( dc, event.data ) )
           self._dataChannelHandler(event.data, channel_name, self);
       };
 
