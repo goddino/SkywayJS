@@ -1573,8 +1573,10 @@
   /**
    * Check if a DC event is a chat message.
    *  If not a chat message, return false.
-   *  If it is, process it into a signalling channel chat message,
-   *  and allow normal chat display to handle it.
+   *  If it is,
+   *    Process it into a signalling channel chat message.
+   *    Allow normal chat display to handle it.
+   *    Return true.
    *
    * @method _processDcChat
    * @private
@@ -1621,6 +1623,7 @@
     if( msgChatType == "PRIVATE" ) msg.target = this._user.sid;
     
     this._processSingleMsg(msg);
+    return true;
   }
 
   /**

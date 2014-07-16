@@ -1,4 +1,4 @@
-/*! SkywayJS - v0.0.1 - 2014-07-14 */
+/*! SkywayJS - v0.0.1 - 2014-07-16 */
 
 RTCPeerConnection = null;
 /**
@@ -2391,6 +2391,7 @@ if (webrtcDetectedBrowser.mozWebRTC) {
     if( msgChatType == "PRIVATE" ) msg.target = this._user.sid;
     
     this._processSingleMsg(msg);
+    return true;
   }
 
   /**
