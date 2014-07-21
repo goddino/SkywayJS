@@ -1584,25 +1584,24 @@
    * @param {String} dataStr DC event data of this chat message.
    */
   Skyway.prototype._processDcChat = function ( dc, dataStr ) {
-    /* Debugging
-    for (var i = 0; i < dataStr.length; i++) {
-      console.log( dataStr[i] );
-    }
-    /**/
     var data = dataStr.split( '|' );
     var msgType = data[ 0 ];
-    msgType = this._stripNonAlphanumeric( msgType );
+    // msgType = this._stripNonAlphanumeric( msgType ); // Sender uses non-"UTF-8" encoding.
     if( msgType != "CHAT" ) return false;
     var msgChatType = data[ 1 ];
-    msgChatType = this._stripNonAlphanumeric( msgChatType );
     var msgNick = data[ 2 ];
+    
+    /* If sender uses non-"UTF-8" encoding, activate (add slash in front) following:
+    msgChatType = this._stripNonAlphanumeric( msgChatType ); 
     msgNick = this._stripNonAlphanumeric( msgNick );
+    //*/
+    
     // Get remaining parts as the message contents.
-      // Get the index of the first char of chat content 
+      // This method is to allow "|" to appear in the chat message.
+      // Get the index of the first char of chat content
     var start = 3 + data.slice( 0, 3 ).join('').length;
     var msgChat = '';
       // Add all char from start to the end of dataStr.
-      // This method is to allow "|" to appear in the chat message.
     for( var i = start; i < dataStr.length; i++ ) {
       msgChat += dataStr[ i ];
     }
@@ -1661,8 +1660,8 @@
    * @private
    * @param {String} str String to check.
    */
-  Skyway.prototype._alphanumeric = function ( str ) {  
-    var letterNumber = /^[0-9a-zA-Z]+$/;  
+  Skyway.prototype._alphanumeric = function ( str ) {
+    var letterNumber = /^[0-9a-zA-Z]+$/;
     if( str.match(letterNumber) ) return true;
     else return false;   
   }  
@@ -1770,11 +1769,17 @@
         }
         channel_log = 'API - DataChannel [' + channel_name + '][' + createId + ']: ';
         var options = {};
+        console.log( "webrtcDetectedBrowser: " + webrtcDetectedBrowser + "." );
+        console.dir( webrtcDetectedBrowser );
+          // Testing:
+          // options.reliable = true;
         if (!webrtcDetectedBrowser.isSCTPDCSupported) {
           options.reliable = false;
           console.warn(channel_log + 'Does not support SCTP');
         }
         dc = pc.createDataChannel(channel_name, options);
+        console.log( "DataChannel: " + dc + "." );
+        console.dir( dc );
       } else {
         channel_name = dc.label;
         onDC = true;

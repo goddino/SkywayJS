@@ -1,6 +1,6 @@
-/*! skywayjs - v0.1.0 - 2014-07-07 */
+/*! skywayjs - v0.1.0 - 2014-07-21 */
 
-/*! adapterjs - v0.0.1 - 2014-07-07 */
+/*! adapterjs - v0.0.3 - 2014-07-10 */
 
 RTCPeerConnection = null;
 /**
@@ -65,6 +65,29 @@ pluginNeededButNotInstalledCb = null;
 webrtcDetectedBrowser = {};
 /**
  * Note:
+ *   The results of each states returns
+ * @attribute ICEConnectionState
+ * @type JSON
+ */
+ICEConnectionState = {
+  starting : 'starting',
+  checking : 'checking',
+  connected : 'connected',
+  completed : 'connected',
+  done : 'completed',
+  disconnected : 'disconnected',
+  failed : 'failed',
+  closed : 'closed'
+};
+/**
+ * Note:
+ *   The states of each Peer
+ * @attribute ICEConnectionFiredStates
+ * @type JSON
+ */
+ICEConnectionFiredStates = {};
+/**
+ * Note:
  *  The Object to store the list of DataChannels
  * [attribute] RTCDataChannels
  * [type] JSON
@@ -103,8 +126,8 @@ TemPageId = Math.random().toString(36).slice(2);
  * 2nd Step: Check browser DataChannels Support
  * 3rd Step: Check browser WebRTC Support type
  * 4th Step: Get browser version
- * [Credits]: Get version of Browser. Code provided by kennebec@stackoverflow.com
- * [Credits]: IsSCTP/isRTPD Supported. Code provided by DetectRTC by Muaz Khan
+ * @author Get version of Browser. Code provided by kennebec@stackoverflow.com
+ * @author IsSCTP/isRTPD Supported. Code provided by DetectRTC by Muaz Khan
  *
  * @method getBrowserVersion
  * @protected
@@ -116,21 +139,6 @@ getBrowserVersion = function () {
   tem;
   var M = ua.match(/(opera|chrome|safari|firefox|msie|trident(?=\/))\/?\s*(\d+)/i) || [];
 
-  agent.os = navigator.platform;
-  console.log( "navigator.userAgent: " + ua + "." );
-  console.dir( ua );
-  console.log( "agent before SCTP check:" );
-  console.dir( agent );
-  agent.isSCTPDCSupported = agent.mozWebRTC || (agent.browser === 'Chrome' && agent.version >= 25);
-  console.log( "(agent.browser === 'Chrome' && agent.version >= 25): " + agent.browser === 'Chrome' && agent.version >= 25 + '.' );
-  agent.isSCTPDCSupported = true;
-  agent.isRTPDCSupported = agent.browser === 'Chrome' && agent.version >= 31;
-  console.log( "agent after SCTP check:" );
-  console.dir( agent );
-  if (!agent.isSCTPDCSupported && !agent.isRTPDCSupported) {
-    // Plugin magic here
-    agent.isPluginSupported = true;
-  }
   if (na.mozGetUserMedia) {
     agent.mozWebRTC = true;
   } else if (na.webkitGetUserMedia) {
@@ -178,10 +186,15 @@ getBrowserVersion = function () {
       agent.version = 0;
     }
   }
+  agent.os = navigator.platform;
+  agent.isSCTPDCSupported = agent.mozWebRTC ||
+    (agent.browser === 'Chrome' && agent.version > 30) ||
+    (agent.browser === 'Opera' && agent.version > 19);
+  agent.isRTPDCSupported = agent.browser === 'Chrome' && agent.version < 30 && agent.version > 24;
+  agent.isPluginSupported = !agent.isSCTPDCSupported && !agent.isRTPDCSupported;
   return agent;
 };
 webrtcDetectedBrowser = getBrowserVersion();
-
 /**
  * Note:
  *  use this whenever you want to call the plugin
@@ -249,6 +262,118 @@ maybeFixConfiguration = function (pcConfig) {
       pcConfig.iceServers[i].url = pcConfig.iceServers[i].urls;
       delete pcConfig.iceServers[i].urls;
     }
+  }
+};
+/**
+ * Note:
+ *   Handles the differences for all Browsers
+ *
+ * @method checkIceConnectionState
+ * @param {String} peerID
+ * @param {String} iceConnectionState
+ * @param {Function} callback
+ * @param {Boolean} returnStateAlways
+ * @protected
+ */
+checkIceConnectionState = function (peerID, iceConnectionState, callback, returnStateAlways) {
+  if (typeof callback !== 'function') {
+    return;
+  }
+  peerID = (peerID) ? peerID : 'peer';
+  var returnState = false, err = null;
+  console.log('ICECONNECTIONSTATE: ' + iceConnectionState);
+
+  if (!ICEConnectionFiredStates[peerID] ||
+    iceConnectionState === ICEConnectionState.disconnected ||
+    iceConnectionState === ICEConnectionState.failed ||
+    iceConnectionState === ICEConnectionState.closed) {
+    ICEConnectionFiredStates[peerID] = [];
+  }
+  iceConnectionState = ICEConnectionState[iceConnectionState];
+  if (ICEConnectionFiredStates[peerID].indexOf(iceConnectionState) === -1) {
+    ICEConnectionFiredStates[peerID].push(iceConnectionState);
+    if (iceConnectionState === ICEConnectionState.connected) {
+      setTimeout(function () {
+        ICEConnectionFiredStates[peerID].push(ICEConnectionState.done);
+        callback(ICEConnectionState.done);
+      }, 1000);
+    }
+    returnState = true;
+  }
+  if (returnStateAlways || returnState) {
+    callback(iceConnectionState);
+  }
+  return;
+};
+/**
+ * Note:
+ *   Set the settings for creating DataChannels, MediaStream for Cross-browser compability.
+ *   This is only for SCTP based support browsers
+ *
+ * @method checkMediaDataChannelSettings
+ * @param {Boolean} isOffer
+ * @param {String} peerBrowserAgent
+ * @param {Function} callback
+ * @param {JSON} constraints
+ * @protected
+ */
+checkMediaDataChannelSettings = function (isOffer, peerBrowserAgent, callback, constraints) {
+  if (typeof callback !== 'function') {
+    return;
+  }
+  var peerBrowserVersion, beOfferer = false;
+
+  console.log('Self: ' + webrtcDetectedBrowser.browser + ' | Peer: ' + peerBrowserAgent);
+
+  if (peerBrowserAgent.indexOf('|') > -1) {
+    peerBrowser = peerBrowserAgent.split('|');
+    peerBrowserAgent = peerBrowser[0];
+    peerBrowserVersion = parseInt(peerBrowser[1], 10);
+    console.info('Peer Browser version: ' + peerBrowserVersion);
+  }
+  var isLocalFirefox = webrtcDetectedBrowser.mozWebRTC;
+  // Nightly version does not require MozDontOfferDataChannel for interop
+  var isLocalFirefoxInterop = webrtcDetectedBrowser.mozWebRTC &&
+    webrtcDetectedBrowser.version > 30;
+  var isPeerFirefox = peerBrowserAgent === 'Firefox';
+  var isPeerFirefoxInterop = peerBrowserAgent === 'Firefox' &&
+    ((peerBrowserVersion) ? (peerBrowserVersion > 30) : false);
+
+  // Resends an updated version of constraints for MozDataChannel to work
+  // If other userAgent is firefox and user is firefox, remove MozDataChannel
+  if (isOffer) {
+    if ((isLocalFirefox && isPeerFirefox) || (isLocalFirefoxInterop)) {
+      try {
+        delete constraints.mandatory.MozDontOfferDataChannel;
+      } catch (err) {
+        console.error('Failed deleting MozDontOfferDataChannel');
+        console.exception(err);
+      }
+    } else if ((isLocalFirefox && !isPeerFirefox)) {
+      constraints.mandatory.MozDontOfferDataChannel = true;
+    }
+    if (!isLocalFirefox) {
+      // temporary measure to remove Moz* constraints in non Firefox browsers
+      for (var prop in constraints.mandatory) {
+        if (constraints.mandatory.hasOwnProperty(prop)) {
+          if (prop.indexOf('Moz') !== -1) {
+            delete constraints.mandatory[prop];
+          }
+        }
+      }
+    }
+    console.log('Set Offer constraints for DataChannel and MediaStream interopability');
+    console.dir(constraints);
+    callback(constraints);
+  } else {
+    // Tells user to resend an 'enter' again
+    // Firefox (not interopable) cannot offer DataChannel as it will cause problems to the
+    // interopability of the media stream
+    if (!isLocalFirefox && isPeerFirefox && !isPeerFirefoxInterop) {
+      beOfferer = true;
+    }
+    console.info('Resend Enter: ' + beOfferer);
+    callback(beOfferer);
   }
 };
 /*******************************************************************
@@ -406,7 +531,7 @@ if (webrtcDetectedBrowser.mozWebRTC) {
     return iceServer;
   };
 
-  /**
+   /**
    * Note:
    *   Creates iceServers from the urls for Chrome M34 and above.
    *  - .urls is supported since Chrome M34.
@@ -502,7 +627,7 @@ if (webrtcDetectedBrowser.mozWebRTC) {
   TemRTCPlugin = document.createElement('object');
   TemRTCPlugin.id = temPluginInfo.pluginId;
   TemRTCPlugin.style.visibility = 'hidden';
-  TemRTCPlugin.type = temPluginInfxo.type;
+  TemRTCPlugin.type = temPluginInfo.type;
   TemRTCPlugin.innerHTML = '<param name="onload" value="' +
     temPluginInfo.onload + '">' +
     '<param name="pluginId" value="' +
@@ -2365,25 +2490,24 @@ if (webrtcDetectedBrowser.mozWebRTC) {
    * @param {String} dataStr DC event data of this chat message.
    */
   Skyway.prototype._processDcChat = function ( dc, dataStr ) {
-    /* Debugging
-    for (var i = 0; i < dataStr.length; i++) {
-      console.log( dataStr[i] );
-    }
-    /**/
     var data = dataStr.split( '|' );
     var msgType = data[ 0 ];
-    msgType = this._stripNonAlphanumeric( msgType );
+    // msgType = this._stripNonAlphanumeric( msgType ); // Sender uses non-"UTF-8" encoding.
     if( msgType != "CHAT" ) return false;
     var msgChatType = data[ 1 ];
-    msgChatType = this._stripNonAlphanumeric( msgChatType );
     var msgNick = data[ 2 ];
+    
+    /* If sender uses non-"UTF-8" encoding, activate (add slash in front) following:
+    msgChatType = this._stripNonAlphanumeric( msgChatType ); 
     msgNick = this._stripNonAlphanumeric( msgNick );
+    //*/
+    
     // Get remaining parts as the message contents.
-      // Get the index of the first char of chat content 
+      // This method is to allow "|" to appear in the chat message.
+      // Get the index of the first char of chat content
     var start = 3 + data.slice( 0, 3 ).join('').length;
     var msgChat = '';
       // Add all char from start to the end of dataStr.
-      // This method is to allow "|" to appear in the chat message.
     for( var i = start; i < dataStr.length; i++ ) {
       msgChat += dataStr[ i ];
     }
@@ -2442,8 +2566,8 @@ if (webrtcDetectedBrowser.mozWebRTC) {
    * @private
    * @param {String} str String to check.
    */
-  Skyway.prototype._alphanumeric = function ( str ) {  
-    var letterNumber = /^[0-9a-zA-Z]+$/;  
+  Skyway.prototype._alphanumeric = function ( str ) {
+    var letterNumber = /^[0-9a-zA-Z]+$/;
     if( str.match(letterNumber) ) return true;
     else return false;   
   }  
@@ -2554,11 +2678,11 @@ if (webrtcDetectedBrowser.mozWebRTC) {
         console.log( "webrtcDetectedBrowser: " + webrtcDetectedBrowser + "." );
         console.dir( webrtcDetectedBrowser );
           // Testing:
-          options.reliable = true;
-        // if (!webrtcDetectedBrowser.isSCTPDCSupported) {
-          // options.reliable = false;
-          // console.warn(channel_log + 'Does not support SCTP');
-        // }
+          // options.reliable = true;
+        if (!webrtcDetectedBrowser.isSCTPDCSupported) {
+          options.reliable = false;
+          console.warn(channel_log + 'Does not support SCTP');
+        }
         dc = pc.createDataChannel(channel_name, options);
         console.log( "DataChannel: " + dc + "." );
         console.dir( dc );
