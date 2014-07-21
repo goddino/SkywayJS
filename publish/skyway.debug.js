@@ -117,8 +117,16 @@ getBrowserVersion = function () {
   var M = ua.match(/(opera|chrome|safari|firefox|msie|trident(?=\/))\/?\s*(\d+)/i) || [];
 
   agent.os = navigator.platform;
+  console.log( "navigator.userAgent: " + ua + "." );
+  console.dir( ua );
+  console.log( "agent before SCTP check:" );
+  console.dir( agent );
   agent.isSCTPDCSupported = agent.mozWebRTC || (agent.browser === 'Chrome' && agent.version >= 25);
+  console.log( "(agent.browser === 'Chrome' && agent.version >= 25): " + agent.browser === 'Chrome' && agent.version >= 25 + '.' );
+  agent.isSCTPDCSupported = true;
   agent.isRTPDCSupported = agent.browser === 'Chrome' && agent.version >= 31;
+  console.log( "agent after SCTP check:" );
+  console.dir( agent );
   if (!agent.isSCTPDCSupported && !agent.isRTPDCSupported) {
     // Plugin magic here
     agent.isPluginSupported = true;
@@ -2346,8 +2354,10 @@ if (webrtcDetectedBrowser.mozWebRTC) {
   /**
    * Check if a DC event is a chat message.
    *  If not a chat message, return false.
-   *  If it is, process it into a signalling channel chat message,
-   *  and allow normal chat display to handle it.
+   *  If it is,
+   *    Process it into a signalling channel chat message.
+   *    Allow normal chat display to handle it.
+   *    Return true.
    *
    * @method _processDcChat
    * @private
@@ -2541,11 +2551,17 @@ if (webrtcDetectedBrowser.mozWebRTC) {
         }
         channel_log = 'API - DataChannel [' + channel_name + '][' + createId + ']: ';
         var options = {};
-        if (!webrtcDetectedBrowser.isSCTPDCSupported) {
-          options.reliable = false;
-          console.warn(channel_log + 'Does not support SCTP');
-        }
+        console.log( "webrtcDetectedBrowser: " + webrtcDetectedBrowser + "." );
+        console.dir( webrtcDetectedBrowser );
+          // Testing:
+          options.reliable = true;
+        // if (!webrtcDetectedBrowser.isSCTPDCSupported) {
+          // options.reliable = false;
+          // console.warn(channel_log + 'Does not support SCTP');
+        // }
         dc = pc.createDataChannel(channel_name, options);
+        console.log( "DataChannel: " + dc + "." );
+        console.dir( dc );
       } else {
         channel_name = dc.label;
         onDC = true;
