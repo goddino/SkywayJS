@@ -1495,6 +1495,9 @@
         // Create a DataChannel format chat message
         // Add nickname.
         var msgDc = this._user.displayName + '|' + message.data;
+        console.log( "Message.data: " + message.data + "." );
+        console.log( "Message.data type: " + typeof message.data + "." );
+        console.log( "Message.data length: " + message.data.length + "." );
         // Broadcast type
         if( ! ( 'target' in message ) ) {
           msgDc = "CHAT|GROUP|" + msgDc;
@@ -1553,11 +1556,14 @@
     if (!RTCDataChannels[channelInit]) {
       if(!RTCDataChannels[channelRspd]) {
         // DC does not exist, create it.
+        console.log( "DC does not exist, creating it now..." );
         _createDataChannel( this._user.sid, targetId, null, null );
       } else {
+        console.log( "DC exist as Responder." );
         dc = RTCDataChannels[ channelRspd ];
       }
     } else {
+      console.log( "DC exist as Initiator." );
       dc = RTCDataChannels[ channelInit ];
     }
 
@@ -1565,8 +1571,16 @@
     // Checking again as dc may not have been finished creating.
     if( dc != null ) {
       dc.send( msgDc );
-      console.log( "Sent DC message to: " + targetId + 
+      console.log( "Sent DC message:\n" + msgDc +
+        "To: " + targetId + 
         " via DataChannel " + dc.label + '.' );
+      var charCodes = this._toCharCode( msgDc, 4 );
+      console.log( "CharCode of msgDC:\n" + charCodes + "." );
+      
+      var strBack = this._codeToChar( charCodes, 4 );
+      console.log( "Back to String of msgDC:\n" + strBack + "." );
+      
+      
     }
   }
 
@@ -1625,6 +1639,54 @@
     return true;
   }
 
+  /**
+   * Converts a string into numeric Unicode value.
+   *
+   * @method _toCharCode
+   * @private
+   * @param {String} strIn String to convert.
+   * @param {Number} width Number of characters to use as width of one Unicode value.
+   */
+  Skyway.prototype._toCharCode = function( strIn, width ){
+    var strOut = '';
+    for( var i=0; i < strIn.length; i++ ) {
+      strOut += this._padLeft( strIn.charCodeAt( i ), " ", width );
+    }
+    return strOut;
+  }  
+  
+  /**
+   * Converts a string of numeric Unicode value to the Unicode Character.
+   *
+   * @method _codeToChar
+   * @private
+   * @param {String} strIn String to convert.
+   * @param {Number} width Number of integers to consider as one Unicode character.
+   */
+  Skyway.prototype._codeToChar = function( strIn, width ){
+    var strOut = '';
+    for( var i=0; i < strIn.length; i += width ){
+      // console.log( i + ': ' + strIn.substring( i, i + width ) )
+      strOut += String.fromCharCode( strIn.substring( i, i + width ) );
+    }
+    return strOut;
+  }
+  
+  /**
+   * Pads a string with characters on the left.
+   *
+   * @method _padLeft
+   * @private
+   * @param {String} strIn String to pad.
+   * @param {String} padder Character(s) to use as padding.
+   * @param {Number} width Final number of characters desired for the string.
+   */
+  Skyway.prototype._padLeft = function( strIn, padder, width ){
+    var strOut = strIn;
+    while( strOut.toString().length < width ) strOut = padder + strOut;
+    return strOut;
+  }  
+  
   /**
    * Removes non-alphanumeric characters from a string and return it.
    *
