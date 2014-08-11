@@ -408,7 +408,7 @@
 
   Skyway.prototype._events = {
     /**
-     * Event fired when a successfull connection channel has been established
+     * Event fired when a successful connection channel has been established
      * with the signaling server
      * @event channelOpen
      */
@@ -2042,7 +2042,7 @@
    * DataChannel TFTP Protocol Stage: WRQ
    * The sender has sent a request to send file
    * From here, it's up to the user to accept or reject it
-   *
+   * Format of WRQ data: WRQ|userAgent|filename|filesize|chunksize|timeout  
    * @method _dataChannelWRQHandler
    * @private
    * @param {Array} data
@@ -2050,7 +2050,14 @@
    * @param {Skyway} self
    */
   Skyway.prototype._dataChannelWRQHandler = function (data, channel, self) {
-    var acceptFile = confirm('Do you want to receive File ' + data[2] + '?');
+    var filename = data[2];
+    var acceptFile = confirm('Do you want to receive File ' + filename + '?');
+    
+    // WRQ|userAgent|filename|filesize|chunksize|timeout
+    var filesize = parseInt( data[3], 10 );
+    var chunkSize = parseInt( data[4], 10 );
+    var timeout = parseInt( data[5], 10 );
+    
     var itemId = this._user.sid + (((new Date()).toISOString()
                   .replace(/-/g, '')
                   .replace(/:/g, '')))
@@ -2058,21 +2065,21 @@
     if (acceptFile) {
       self._downloadDataTransfers[channel] = {
         itemId: itemId,
-        filename: data[2],
-        filesize: parseInt(data[3], 10),
+        filename: filename,
+        filesize: filesize,
         data: [],
         ackN: 0,
         totalReceivedSize: 0,
-        chunkSize: parseInt(data[4],10),
-        timeout: parseInt(data[5], 10),
+        chunkSize: chunkSize,
+        timeout: timeout,
         ready: false
       };
       self._sendDataChannel(channel, 'ACK|0|' + window.webrtcDetectedBrowser.browser);
       this._trigger('startDataTransfer',
         itemId,
         this._dataChannelPeer(channel, this),
-        data[2],
-        data[3],
+        filename,
+        filesize,
         self.DATA_TRANSFER_TYPE.DOWNLOAD
       );
     } else {
