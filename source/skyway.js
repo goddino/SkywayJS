@@ -1092,12 +1092,6 @@
     }
     this._path += ((this._path.indexOf('?&') > -1) ?
       '&' : '?&') + 'rg=' + region;
-      log.setLevel("warn");
-    // var msg = "logger levels";
-    // log.debug(msg);
-    // log.info(msg);
-    // log.warn(msg);
-    // log.error(msg);
     log.info('API - Server URL: ' + this._path);
     log.debug('API - Are we using ICE Trickle: ' + ((typeof options.iceTrickle ===
       'boolean') ? options.iceTrickle : 'yes (Default)'));
@@ -1284,6 +1278,22 @@
     return (this._user) ?
       ((this._user.info) ? (this._user.info.userData || '')
       : '') : '';
+  };
+  
+  /**
+   * Set the API logger level. Default is level "warn"
+   * @method setLogLevel
+   * @param {String} Level name (): trace < debug < info < warn < error < silent
+   * @example
+     var msg = "logger levels";
+     log.debug(msg);
+     log.info(msg);
+     log.warn(msg);
+     log.error(msg);
+     @since 0.4.x
+   */
+  Skyway.prototype.setLogLevel = function(level) {
+    log.setLevel(level);
   };
 
   /**
@@ -2995,7 +3005,7 @@
       self._trigger('dataChannelState', self.DATA_CHANNEL_STATE.ERROR, peerId, error);
     };
     dc.onclose = function() {
-      console.infp('API - DataChannel [' + peerId + ']: DataChannel closed');
+      log.info('API - DataChannel [' + peerId + ']: DataChannel closed');
       self._closeDataChannel(peerId, self);
       self._trigger('dataChannelState', self.DATA_CHANNEL_STATE.CLOSED, peerId);
     };
