@@ -751,17 +751,16 @@
       console.info('XHR - Fetching infos from webserver');
       xhr.onreadystatechange = function() {
         if (this.readyState === this.DONE) {
-          console.info('XHR - Got infos from webserver.');
+          console.debug('XHR - Received sessions parameters');
           if (this.status !== 200) {
-            console.info('XHR - ERROR ' + this.status, false);
+            console.error('XHR - ERROR ' + this.status, false);
           }
-          console.info(JSON.parse(this.response) || '{}');
+          console.debug("Sessions parameters:",JSON.parse(this.response) || '{}');
           callback(this.status, JSON.parse(this.response || '{}'));
         }
       };
       xhr.open(method, url, true);
       if (params) {
-        console.info(params);
         xhr.setRequestHeader('Content-type', 'application/json;charset=UTF-8');
         xhr.send(JSON.stringify(params));
       } else {
@@ -779,7 +778,7 @@
      * @since 0.1.0
      */
     this._parseInfo = function(info, self) {
-      console.log(info);
+      console.debug("Parse parameter from server");
 
       if (!info.pc_constraints && !info.offer_constraints) {
         self._trigger('readyStateChange', self.READY_STATE_CHANGE.ERROR, {
@@ -789,8 +788,8 @@
         });
         return;
       }
-      console.log(JSON.parse(info.pc_constraints));
-      console.log(JSON.parse(info.offer_constraints));
+      console.debug("Peer Connection constraints:",info.pc_constraints);
+      console.debug("Offer constraints:",info.offer_constraints);
 
       self._key = info.cid;
       self._user = {
@@ -825,7 +824,7 @@
       };
       self._readyState = 2;
       self._trigger('readyStateChange', self.READY_STATE_CHANGE.COMPLETED);
-      console.info('API - Parsed infos from webserver. Ready.');
+      console.info('API - Parsed parameters from webserver. Ready for WebRealtime communication');
     };
     /**
      * Load information from server
@@ -838,7 +837,7 @@
      */
     this._loadInfo = function(self) {
       if (!window.io) {
-        console.error('API - Socket.io not loaded.');
+        console.error('API - Socket.io not loaded');
         self._trigger('readyStateChange', self.READY_STATE_CHANGE.ERROR, {
           status: null,
           content: 'Socket.io not found',
@@ -856,7 +855,7 @@
         return;
       }
       if (!window.RTCPeerConnection) {
-        console.error('RTC - WebRTC not supported.');
+        console.error('RTC - WebRTC not supported');
         self._trigger('readyStateChange', self.READY_STATE_CHANGE.ERROR, {
           status: null,
           content: 'WebRTC not available',
@@ -865,7 +864,7 @@
         return;
       }
       if (!self._path) {
-        console.error('API - No connection info. Call init() first.');
+        console.error('API - Skyway has no been initialised, did you call init()');
         self._trigger('readyStateChange', self.READY_STATE_CHANGE.ERROR, {
           status: null,
           content: 'No API Path is found',
@@ -880,7 +879,6 @@
           // 403 - Room is locked
           // 401 - API Not authorized
           // 402 - run out of credits
-          var errorMessage = 'XMLHttpRequest status not OK\nStatus was: ' + status;
           self._readyState = 0;
           self._trigger('readyStateChange', self.READY_STATE_CHANGE.ERROR, {
             status: status,
@@ -888,13 +886,13 @@
             errorCode: response.error ||
               self.READY_STATE_CHANGE_ERROR.INVALID_XMLHTTPREQUEST_STATUS
           });
-          console.error(errorMessage);
+          console.error('XMLHttpRequest error. Status was: ',status);
           return;
         }
-        console.info(response);
+        // console.debug(response);
         self._parseInfo(response, self);
       });
-      console.log('API - Waiting for webserver to provide infos.');
+      console.log('API - Waiting for webserver to provide infos');
     };
   }
   this.Skyway = Skyway;
@@ -964,7 +962,7 @@
               break;
             }
           } catch(error) {
-            console.warn(error);
+            console.warn("Error thrown when triggering the event"+eventName,error);
           }
         }
       }
@@ -1039,7 +1037,7 @@
    */
   Skyway.prototype.init = function(options) {
     if (!options) {
-      console.error('API - No apiKey is inputted');
+      console.error('API - No API Key is inputted');
       return;
     }
     var apiKey, room, defaultRoom;
@@ -1094,9 +1092,9 @@
     }
     this._path += ((this._path.indexOf('?&') > -1) ?
       '&' : '?&') + 'rg=' + region;
-    console.log('API - Path: ' + this._path);
-    console.info('API - ICE Trickle: ' + ((typeof options.iceTrickle ===
-      'boolean') ? options.iceTrickle : '[Default: true]'));
+    console.log('API - Server URL: ' + this._path);
+    console.debug('API - Are we using ICE Trickle: ' + ((typeof options.iceTrickle ===
+      'boolean') ? options.iceTrickle : 'yes (Default)'));
     this._loadInfo(this);
   };
 
@@ -1164,11 +1162,10 @@
     self._path += ((self._path.indexOf('?&') > -1) ?
       '&' : '?&') + 'rg=' + region;
     console.log('API - Path: ' + this._path);
-    console.info('API - ICE Trickle: ' + ((typeof options.iceTrickle ===
+    console.debug('API - ICE Trickle: ' + ((typeof options.iceTrickle ===
       'boolean') ? options.iceTrickle : '[Default: true]'));
     self._requestServerInfo('GET', self._path, function(status, response) {
       if (status !== 200) {
-        var errorMessage = 'XMLHttpRequest status not OK.\nStatus was: ' + status;
         self._readyState = 0;
         self._trigger('readyStateChange', self.READY_STATE_CHANGE.ERROR, {
           status: status,
@@ -1176,10 +1173,10 @@
           errorCode: response.error ||
             self.READY_STATE_CHANGE_ERROR.INVALID_XMLHTTPREQUEST_STATUS
         });
-        console.error(errorMessage);
+        console.error('XMLHttpRequest error. Status was:',status);
         return;
       }
-      console.info(response);
+      // console.info(response);
       var info = response;
       try {
         self._key = info.cid;
@@ -1220,8 +1217,7 @@
           content: error,
           errorCode: self.READY_STATE_CHANGE_ERROR.SCRIPT_ERROR
         });
-        console.error('API - Error occurred rejoining room');
-        console.error(error);
+        console.error('API - Error occurred when rejoining room',error);
         return;
       }
     });
@@ -1692,7 +1688,7 @@
     if (self._user.info.settings) {
       // So it would invoke to getMediaStream defaults
       if (!options.video && !options.audio) {
-        console.warn('API - No streams requested. Request an audio/video or both.');
+        console.warn('API - No Media requested. Request an audio/video or both');
       } else if (self._user.info.settings.audio !== options.audio ||
         self._user.info.settings.video !== options.video) {
         if (Object.keys(self._user.streams).length > 0) {
@@ -1721,7 +1717,7 @@
         }, function(error) {
           self._onUserMediaError(error, self);
         });
-        console.log('API [MediaStream] - Requested ' +
+        console.debug('API [MediaStream] - Requested ' +
           ((self._streamSettings.audio) ? 'A' : '') +
           ((self._streamSettings.audio &&
             self._streamSettings.video) ? '/' : '') +
@@ -1730,7 +1726,7 @@
         this._onUserMediaError(error, self);
       }
     } else {
-      console.warn('API - User already has stream. Reactiving stream only.');
+      console.warn('API - User has already this media. Reactiving media');
     }
   };
 
@@ -1744,7 +1740,7 @@
    * @since 0.3.0
    */
   Skyway.prototype._onUserMediaSuccess = function(stream, self) {
-    console.log('API - User has granted access to local media.');
+    console.log('API - User has granted access to local media');
     self._trigger('mediaAccessSuccess', stream);
     var checkReadyState = setInterval(function () {
       if (self._readyState === self.READY_STATE_CHANGE.COMPLETED) {
@@ -1771,14 +1767,7 @@
    * @since 0.1.0
    */
   Skyway.prototype._onUserMediaError = function(e, self) {
-    console.log('API - getUserMedia failed with exception type: ' + e.name);
-    if (e.message) {
-      console.log('API - getUserMedia failed with exception: ' + e.message);
-    }
-    if (e.constraintName) {
-      console.log('API - getUserMedia failed because of the following constraint: ' +
-        e.constraintName);
-    }
+    console.error('API - getUserMedia failed with exception: ',e);
     self._trigger('mediaAccessError', (e.name || e));
   };
 
@@ -1794,7 +1783,7 @@
   Skyway.prototype._processSigMessage = function(messageString) {
     var message = JSON.parse(messageString);
     if (message.type === this.SIG_TYPE.GROUP) {
-      console.log('API - Bundle of ' + message.lists.length + ' messages.');
+      console.debug('API - Bundle of ' + message.lists.length + ' messages.');
       for (var i = 0; i < message.lists.length; i++) {
         this._processSingleMessage(message.lists[i]);
       }
@@ -1816,11 +1805,11 @@
     if (!origin || origin === this._user.sid) {
       origin = 'Server';
     }
-    console.log('API - [' + origin + '] Incoming message: ' + message.type);
+    console.debug('API - [' + origin + '] Incoming message: ' + message.type);
     if (message.mid === this._user.sid &&
       message.type !== this.SIG_TYPE.REDIRECT &&
       message.type !== this.SIG_TYPE.IN_ROOM) {
-      console.log('API - Ignoring message: ' + message.type + '.');
+      console.warn('API - Ignoring message: ' + message.type);
       return;
     }
     switch (message.type) {
@@ -1872,7 +1861,7 @@
       this._roomLockEventHandler(message);
       break;
     default:
-      console.log('API - [' + message.mid + '] Unsupported message type received: ' + message.type);
+      console.warn('API - [' + message.mid + '] Unsupported message type received: ' + message.type);
       break;
     }
   };
@@ -1889,7 +1878,7 @@
    * @since 0.1.0
    */
   Skyway.prototype._errorHandler = function(message) {
-    console.log('API - [Server] Error occurred: ' + message.kind);
+    console.error('API - [Server] Error occurred: ' + message.kind);
     // location.href = '/?error=' + message.kind;
   };
 
@@ -1927,7 +1916,7 @@
    */
   Skyway.prototype._updateUserEventHandler = function(message) {
     var targetMid = message.mid;
-    console.log('API - [' + targetMid + '] received \'updateUserEvent\'.');
+    console.log('API - [' + targetMid + '] received \'updateUserEvent\'');
     if (this._peerInformations[targetMid]) {
       this._peerInformations[targetMid].userData = message.userData || {};
       this._trigger('peerUpdated', targetMid,
@@ -1950,7 +1939,7 @@
    */
   Skyway.prototype._roomLockEventHandler = function(message) {
     var targetMid = message.mid;
-    console.log('API - [' + targetMid + '] received \'roomLockEvent\'.');
+    console.log('API - [' + targetMid + '] received \'roomLockEvent\'');
     this._trigger('roomLock', message.lock, targetMid,
       this._peerInformations[targetMid], false);
   };
@@ -1970,7 +1959,7 @@
    */
   Skyway.prototype._muteAudioEventHandler = function(message) {
     var targetMid = message.mid;
-    console.log('API - [' + targetMid + '] received \'muteAudioEvent\'.');
+    console.log('API - [' + targetMid + '] received \'muteAudioEvent\'');
     if (this._peerInformations[targetMid]) {
       this._peerInformations[targetMid].mediaStatus.audioMuted = message.muted;
       this._trigger('peerUpdated', targetMid,
@@ -1993,7 +1982,7 @@
    */
   Skyway.prototype._muteVideoEventHandler = function(message) {
     var targetMid = message.mid;
-    console.log('API - [' + targetMid + '] received \'muteVideoEvent\'.');
+    console.log('API - [' + targetMid + '] received \'muteVideoEvent\'');
     if (this._peerInformations[targetMid]) {
       this._peerInformations[targetMid].mediaStatus.videoMuted = message.muted;
       this._trigger('peerUpdated', targetMid,
@@ -2014,7 +2003,7 @@
    */
   Skyway.prototype._byeHandler = function(message) {
     var targetMid = message.mid;
-    console.log('API - [' + targetMid + '] received \'bye\'.');
+    console.log('API - [' + targetMid + '] received \'bye\'');
     this._removePeer(targetMid);
   };
 
@@ -2102,9 +2091,7 @@
    */
   Skyway.prototype._inRoomHandler = function(message) {
     var self = this;
-    console.log('API - We\'re in the room! Chat functionalities are now available.');
-    console.log('API - We\'ve been given the following PC Constraint by the sig server: ');
-    console.dir(message.pc_config);
+    console.log('API - Welcome to the room '+message.rid+', Chat functionalities are now available');
     self._room.pcHelper.pcConfig = self._setFirefoxIceServers(message.pc_config);
     self._in_room = true;
     self._user.sid = message.sid;
@@ -2123,7 +2110,7 @@
       version: window.webrtcDetectedBrowser.version,
       userInfo: self._user.info
     };
-    console.log('API - Sending enter.');
+    console.debug('API - Sending enter.');
     self._trigger('handshakeProgress', self.HANDSHAKE_PROGRESS.ENTER, self._user.sid);
     self._sendMessage(params);
   };
@@ -2173,20 +2160,20 @@
           agent: window.webrtcDetectedBrowser.browser,
           userInfo: self._user.info
         };
-        console.info(JSON.stringify(params));
         if (!beOfferer) {
-          console.log('API - [' + targetMid + '] Sending welcome.');
+          console.debug('API - [' + targetMid + '] Sending welcome.');
           self._peerInformations[targetMid] = message.userInfo;
           self._trigger('peerJoined', targetMid, message.userInfo, false);
           self._trigger('handshakeProgress', self.HANDSHAKE_PROGRESS.WELCOME, targetMid);
           params.target = targetMid;
         }
+        console.debug("Answer to Enter with:",JSON.stringify(params));
         self._sendMessage(params);
       });
     } else {
       // NOTE ALEX: and if we already have a connection when the peer enter,
       // what should we do? what are the possible use case?
-      console.log('API - Received "enter" when Peer "' + targetMid +
+      console.warn('API - Received "enter" when Peer "' + targetMid +
         '" is already added.');
       return;
     }
@@ -2237,8 +2224,8 @@
         message.enableDataChannel : this._enableDataChannel;
       this._openPeer(targetMid, message.agent, true, message.receiveOnly);
     } else {
-      console.log('API - Not creating offer because user is' +
-        ' connected to peer already.');
+      console.log('API - Not creating offer because user is already' +
+        ' connected to peer');
       console.error('API [' + targetMid + '] - Peer connectivity issue.' +
         ' Refreshing connection');
       this.leaveRoom();
@@ -2267,8 +2254,7 @@
     message.agent = (!message.agent) ? 'Chrome' : message.agent;
     self._trigger('handshakeProgress', self.HANDSHAKE_PROGRESS.OFFER, targetMid);
     var offer = new window.RTCSessionDescription(message);
-    console.log('API - [' + targetMid + '] Received offer:');
-    console.dir(offer);
+    console.debug('API - [' + targetMid + '] Received offer:',offer);
     var pc = self._peerConnections[targetMid];
     if (!pc) {
       self._openPeer(targetMid, message.agent, false);
@@ -2278,8 +2264,7 @@
       self._doAnswer(targetMid);
     }, function(error) {
       self._trigger('handshakeProgress', self.HANDSHAKE_PROGRESS.ERROR, targetMid, error);
-      console.error('API - [' + targetMid + '] Failed setting remote description for offer.');
-      console.error(error);
+      console.error('API - [' + targetMid + '] Failed setting remote description for offer',error);
     });
   };
 
@@ -2294,16 +2279,14 @@
   Skyway.prototype._doAnswer = function(targetMid) {
     var self = this;
     var pc = self._peerConnections[targetMid];
-    console.log('API - [' + targetMid + '] Creating answer.');
+    console.debug('API - [' + targetMid + '] Creating answer');
     if (pc) {
       pc.createAnswer(function(answer) {
-        console.log('API - [' + targetMid + '] Created  answer.');
-        console.dir(answer);
+        console.log('API - [' + targetMid + '] Created  answer',answer);
         self._setLocalAndSendMessage(targetMid, answer);
       }, function(error) {
         self._trigger('handshakeProgress', self.HANDSHAKE_PROGRESS.ERROR, targetMid, error);
-        console.error('API - [' + targetMid + '] Failed creating an answer.');
-        console.error(error);
+        console.error('API - [' + targetMid + '] Failed creating an answer',error);
       }, self._room.pcHelper.sdpConstraints);
     } else {
       return;
@@ -2356,7 +2339,7 @@
     // NOTE ALEX: here we could do something smarter
     // a mediastream is mainly a container, most of the info
     // are attached to the tracks. We should iterates over track and print
-    console.log('API - [' + peerId + '] Adding local stream.');
+    console.info('API - [' + peerId + '] Adding local stream.');
 
     if (Object.keys(this._user.streams).length > 0) {
       for (var stream in this._user.streams) {
@@ -2367,7 +2350,7 @@
         }
       }
     } else {
-      console.log('API - WARNING - No stream to send. You will be only receiving.');
+      console.log('API - WARNING - No media to send. You will be only receiving');
     }
   };
 
@@ -2382,8 +2365,12 @@
    * @since 0.1.0
    */
   Skyway.prototype._onRemoteStreamAdded = function(targetMid, event) {
-    console.log('API - [' + targetMid + '] Remote Stream added.');
-    this._trigger('incomingStream', targetMid, event.stream, false);
+    if(targetMid != 'MCU')
+    {
+      console.info('API - [' + targetMid + '] Remote Stream added.');
+      this._trigger('incomingStream', targetMid, event.stream, false);
+    }
+    
   };
 
   /**
@@ -2405,14 +2392,13 @@
       }
     }
     constraints.optional.concat(sc.optional);
-    console.log('API - [' + targetMid + '] Creating offer.');
+    console.debug('API - [' + targetMid + '] Creating offer');
     checkMediaDataChannelSettings(true, peerAgentBrowser, function(offerConstraints) {
       pc.createOffer(function(offer) {
         self._setLocalAndSendMessage(targetMid, offer);
       }, function(error) {
         self._trigger('handshakeProgress', self.HANDSHAKE_PROGRESS.ERROR, targetMid, error);
-        console.error('API - [' + targetMid + '] Failed creating an offer.');
-        console.error(error);
+        console.error('API - [' + targetMid + '] Failed creating an offer',error);
       }, offerConstraints);
     }, constraints);
   };
@@ -2517,9 +2503,6 @@
   Skyway.prototype._setLocalAndSendMessage = function(targetMid, sessionDescription) {
     var self = this;
     var pc = self._peerConnections[targetMid];
-    console.log('API - [' + targetMid + '] Created ' +
-      sessionDescription.type + '.');
-    console.log(sessionDescription);
     // NOTE ALEX: handle the pc = 0 case, just to be sure
     var sdpLines = sessionDescription.sdp.split('\r\n');
     if (self._streamSettings.stereo) {
@@ -2529,11 +2512,12 @@
     if (self._streamSettings.bandwidth) {
       sdpLines = self._setSDPBitrate(sdpLines, self._streamSettings.bandwidth);
       console.info('API - Custom Bandwidth settings');
-      console.info('API - Video: ' + self._streamSettings.bandwidth.video);
-      console.info('API - Audio: ' + self._streamSettings.bandwidth.audio);
-      console.info('API - Data: ' + self._streamSettings.bandwidth.data);
+      console.info('API - Video: ' + self._streamSettings.bandwidth.video+'kB/s');
+      console.info('API - Audio: ' + self._streamSettings.bandwidth.audio+'kB/s');
+      console.info('API - Data: ' + self._streamSettings.bandwidth.data+'kB/s');
     }
     sessionDescription.sdp = sdpLines.join('\r\n');
+    console.debug('API - [' + targetMid + '] Created session description:',sessionDescription);
 
     // NOTE ALEX: opus should not be used for mobile
     // Set Opus as the preferred codec in SDP if Opus is present.
@@ -2545,11 +2529,10 @@
     console.log('API - [' + targetMid + '] Setting local Description (' +
       sessionDescription.type + ').');
     pc.setLocalDescription(sessionDescription, function() {
-      console.log('API - [' + targetMid + '] Set ' + sessionDescription.type + '.');
       self._trigger('handshakeProgress', sessionDescription.type, targetMid);
       if (self._enableIceTrickle || (!self._enableIceTrickle &&
         sessionDescription.type !== self.HANDSHAKE_PROGRESS.OFFER)) {
-        console.log('API - [' + targetMid + '] Sending ' + sessionDescription.type + '.');
+        console.debug('API - [' + targetMid + '] Sending ' + sessionDescription.type);
         self._sendMessage({
           type: sessionDescription.type,
           sdp: sessionDescription.sdp,
@@ -2561,8 +2544,7 @@
       }
     }, function(error) {
       self._trigger('handshakeProgress', self.HANDSHAKE_PROGRESS.ERROR, targetMid, error);
-      console.error('API - [' + targetMid + '] There was a problem setting the Local Description.');
-      console.error(error);
+      console.error('API - [' + targetMid + '] There was a problem setting the Local Description',error);
     });
   };
 
@@ -2628,8 +2610,7 @@
     options = options || {};
     self.getUserMedia(options);
 
-    console.log('API - requireVideo: ' + options.video);
-    console.log('API - requireAudio: ' + options.audio);
+    console.log('API - Video required: ' + options.video + ' | Audio required: ' + options.audio);
 
     if (options.video || options.audio) {
       var checkForStream = setInterval(function() {
@@ -2709,23 +2690,21 @@
       pc = new window.RTCPeerConnection(
         self._room.pcHelper.pcConfig,
         self._room.pcHelper.pcConstraints);
-      console.log(
-        'API - [' + targetMid + '] Created PeerConnection.');
-      console.log(
-        'API - [' + targetMid + '] PC config: ');
-      console.dir(self._room.pcHelper.pcConfig);
-      console.log(
-        'API - [' + targetMid + '] PC constraints: ' +
-        JSON.stringify(self._room.pcHelper.pcConstraints));
+      console.info(
+        'API - [' + targetMid + '] Created PeerConnection');
+      console.debug(
+        'API - [' + targetMid + '] PC config: ',self._room.pcHelper.pcConfig);
+      console.debug(
+        'API - [' + targetMid + '] PC constraints: ',self._room.pcHelper.pcConstraints);
     } catch (error) {
-      console.log('API - [' + targetMid + '] Failed to create PeerConnection: ' + error.message);
+      console.error('API - [' + targetMid + '] Failed to create PeerConnection: ',error);
       return null;
     }
     // callbacks
     // standard not implemented: onnegotiationneeded,
     pc.ondatachannel = function(event) {
       var dc = event.channel || event;
-      console.log('API - [' + targetMid + '] Received DataChannel -> ' +
+      console.debug('API - [' + targetMid + '] Received DataChannel -> ' +
         dc.label);
       if (self._enableDataChannel) {
         self._createDataChannel(targetMid, function(dc) {
@@ -2734,19 +2713,19 @@
           self._checkDataChannelStatus(dc);
         }, dc);
       } else {
-        console.info('API - [' + targetMid + '] Not adding DataChannel');
+        console.warn('API - [' + targetMid + '] Not adding DataChannel');
       }
     };
     pc.onaddstream = function(event) {
       self._onRemoteStreamAdded(targetMid, event);
     };
     pc.onicecandidate = function(event) {
-      console.dir(event);
+      console.debug("Ice candidate generated");
       self._onIceCandidate(targetMid, event);
     };
     pc.oniceconnectionstatechange = function() {
       checkIceConnectionState(targetMid, pc.iceConnectionState, function(iceConnectionState) {
-        console.log('API - [' + targetMid + '] ICE connection state changed -> ' +
+        console.info('API - [' + targetMid + '] ICE connection state changed -> ' +
           iceConnectionState);
         self._trigger('iceConnectionState', iceConnectionState, targetMid);
       });
@@ -2755,7 +2734,7 @@
     //   self._onRemoteStreamRemoved(targetMid);
     // };
     pc.onsignalingstatechange = function() {
-      console.log('API - [' + targetMid + '] PC connection state changed -> ' +
+      console.info('API - [' + targetMid + '] PC connection state changed -> ' +
         pc.signalingState);
       var signalingState = pc.signalingState;
       if (pc.signalingState !== self.PEER_CONNECTION_STATE.STABLE &&
@@ -2790,7 +2769,7 @@
       if (this._enableIceTrickle) {
         var messageCan = event.candidate.candidate.split(' ');
         var candidateType = messageCan[7];
-        console.log('API - [' + targetMid + '] Created and sending ' +
+        console.debug('API - [' + targetMid + '] Created and sending ' +
           candidateType + ' candidate.');
         this._sendMessage({
           type: this.SIG_TYPE.CANDIDATE,
@@ -2803,12 +2782,12 @@
         });
       }
     } else {
-      console.log('API - [' + targetMid + '] End of gathering.');
+      console.debug('API - [' + targetMid + '] End of gathering');
       this._trigger('candidateGenerationState', this.CANDIDATE_GENERATION_STATE.DONE, targetMid);
       // Disable Ice trickle option
       if (!this._enableIceTrickle) {
         var sessionDescription = this._peerConnections[targetMid].localDescription;
-        console.log('API - [' + targetMid + '] Sending offer.');
+        console.debug('API - [' + targetMid + '] Sending offer');
         this._sendMessage({
           type: sessionDescription.type,
           sdp: sessionDescription.sdp,
@@ -2840,13 +2819,13 @@
     var pc = this._peerConnections[targetMid];
     if (pc) {
       if (pc.iceConnectionState === this.ICE_CONNECTION_STATE.CONNECTED) {
-        console.log('API - [' + targetMid + '] Received but not adding Candidate ' +
+        console.debug('API - [' + targetMid + '] Received but not adding Candidate ' +
           'as we are already connected to this peer.');
         return;
       }
       var messageCan = message.candidate.split(' ');
       var canType = messageCan[7];
-      console.log('API - [' + targetMid + '] Received ' + canType + ' Candidate.');
+      console.debug('API - [' + targetMid + '] Received ' + canType + ' Candidate');
       // if (canType !== 'relay' && canType !== 'srflx') {
       // trace('Skipping non relay and non srflx candidates.');
       var index = message.label;
@@ -2859,10 +2838,9 @@
       // function () { trace('ICE  -  addIceCandidate Succesfull. '); },
       // function (error) { trace('ICE  - AddIceCandidate Failed: ' + error); }
       //);
-      console.log('API - [' + targetMid + '] Added Candidate.');
     } else {
-      console.log('API - [' + targetMid + '] Received but not adding Candidate ' +
-        'as PeerConnection not present.');
+      console.warn('API - [' + targetMid + '] Received but not adding Candidate ' +
+        'as PeerConnection not present');
       // NOTE ALEX: if the offer was slow, this can happen
       // we might keep a buffer of candidates to replay after receiving an offer.
     }
@@ -2886,15 +2864,13 @@
     var targetMid = message.mid;
     self._trigger('handshakeProgress', self.HANDSHAKE_PROGRESS.ANSWER, targetMid);
     var answer = new window.RTCSessionDescription(message);
-    console.log('API - [' + targetMid + '] Received answer:');
-    console.dir(answer);
+    console.debug('API - [' + targetMid + '] Received answer:',answer);
     var pc = self._peerConnections[targetMid];
     pc.setRemoteDescription(new RTCSessionDescription(answer), function() {
       pc.remotePeerReady = true;
     }, function(error) {
       self._trigger('handshakeProgress', self.HANDSHAKE_PROGRESS.ERROR, targetMid, error);
-      console.error('API - [' + targetMid + '] Failed setting remote description for answer.');
-      console.error(error);
+      console.error('API - [' + targetMid + '] Failed setting remote description for answer',error);
     });
   };
 
@@ -2913,7 +2889,7 @@
       return;
     }
     var messageString = JSON.stringify(message);
-    console.log('API - [' + (message.target ? message.target : 'server') +
+    console.debug('API - [' + (message.target ? message.target : 'server') +
       '] Outgoing message: ' + message.type);
     this._socket.send(messageString);
   };
@@ -2931,11 +2907,11 @@
       self._readyState !== self.READY_STATE_CHANGE.COMPLETED) {
       return;
     }
-    console.log('API - Opening channel.');
+    console.log('API - Opening channel');
     var ip_signaling = self._room.signalingServer.protocol + '://' +
       self._room.signalingServer.ip + ':' + self._room.signalingServer.port;
 
-    console.log('API - Signaling server URL: ' + ip_signaling);
+    console.debug('API - Signaling server URL: ' + ip_signaling);
 
     if (self._socketVersion >= 1) {
       self._socket = io.connect(ip_signaling, {
@@ -3009,25 +2985,24 @@
     console.log(
       'API - DataChannel [' + peerId + ']: Binary type support is "' + dc.binaryType + '"');
     dc.onerror = function(error) {
-      console.error('API - DataChannel [' + peerId + ']: Failed retrieveing DataChannel.');
-      console.exception(error);
+      console.error('API - DataChannel [' + peerId + ']: Failed retrieveing DataChannel',error);
       self._trigger('dataChannelState', self.DATA_CHANNEL_STATE.ERROR, peerId, error);
     };
     dc.onclose = function() {
-      console.log('API - DataChannel [' + peerId + ']: DataChannel closed.');
+      console.infp('API - DataChannel [' + peerId + ']: DataChannel closed');
       self._closeDataChannel(peerId, self);
       self._trigger('dataChannelState', self.DATA_CHANNEL_STATE.CLOSED, peerId);
     };
     dc.onopen = function() {
       dc.push = dc.send;
       dc.send = function(data) {
-        console.log('API - DataChannel [' + peerId + ']: DataChannel is opened.');
-        console.log('API - DataChannel [' + peerId + ']: Length : ' + data.length);
+        console.info('API - DataChannel [' + peerId + ']: DataChannel is opened');
+        console.debug('API - DataChannel [' + peerId + ']: Length : ' + data.length);
         dc.push(data);
       };
     };
     dc.onmessage = function(event) {
-      console.log('API - DataChannel [' + peerId + ']: DataChannel message received');
+      console.debug('API - DataChannel [' + peerId + ']: DataChannel message received');
       self._dataChannelHandler(event.data, peerId, self);
     };
     self._trigger('dataChannelState', self.DATA_CHANNEL_STATE.LOADED, peerId);
@@ -3045,7 +3020,7 @@
   Skyway.prototype._checkDataChannelStatus = function(dc) {
     var self = this;
     setTimeout(function() {
-      console.log('API - DataChannel [' + dc.label +
+      console.debug('API - DataChannel [' + dc.label +
         ']: Connection Status - ' + dc.readyState);
       var peerId = self._dataChannelPeers[dc.label];
       self._trigger('dataChannelState', dc.readyState, peerId);
@@ -3071,7 +3046,7 @@
       return;
     } else {
       if (dc.readyState === this.DATA_CHANNEL_STATE.OPEN) {
-        console.log('API - DataChannel [' + peerId + ']: Sending Data from DataChannel');
+        console.debug('API - DataChannel [' + peerId + ']: Sending Data from DataChannel');
         try {
           var dataString = '';
           for (var i = 0; i < data.length; i++) {
@@ -3138,7 +3113,7 @@
       if (dataString.indexOf('|') > -1 && dataString.indexOf('|') < 6) {
         var data = dataString.split('|');
         var state = data[0];
-        console.log('API - DataChannel [' + peerId + ']: Received ' + state);
+        console.debug('API - DataChannel [' + peerId + ']: Received ' + state);
 
         switch (state) {
         case 'CONN':
@@ -3166,7 +3141,7 @@
         }
       } else {
         // DATA - BinaryString base64 received
-        console.log('API - DataChannel [' + peerId + ']: Received "DATA"');
+        console.debug('API - DataChannel [' + peerId + ']: Received "DATA"');
         self._dataChannelDATAHandler(peerId, dataString,
           self.DATA_TRANSFER_DATA_TYPE.BINARY_STRING, self);
       }
@@ -3259,7 +3234,7 @@
     var timeout = uploadedDetails.timeout;
     var transferInfo = {};
 
-    console.log('API - DataChannel Received "ACK": ' + ackN + ' / ' + chunksLength);
+    console.debug('API - DataChannel Received "ACK": ' + ackN + ' / ' + chunksLength);
 
     if (ackN > -1) {
       // Still uploading
@@ -3329,9 +3304,9 @@
     try {
       var result = JSON.parse(params.data);
       params.data = result;
-      console.log('API - Received data is a JSON.');
+      console.debug('API - Received data is a JSON.');
     } catch (error) {
-      console.log('API - Received data is not a JSON.');
+      console.debug('API - Received data is not a JSON.');
     }
     if (isPrivate) {
       params.target = this._user.sid;
@@ -3405,7 +3380,7 @@
       return;
     }
     var receivedSize = (chunk.size * (4 / 3));
-    console.log('API - DataChannel [' + peerId + ']: Chunk size: ' + chunk.size);
+    console.debug('API - DataChannel [' + peerId + ']: Chunk size: ' + chunk.size);
 
     if (transferStatus.chunkSize >= receivedSize) {
       self._downloadDataTransfers[peerId].push(chunk);
@@ -3566,16 +3541,12 @@
     var strOut = '';
     for (var i = 0; i < str.length; i++) {
       var curChar = str[i];
-      console.log(i + ':' + curChar + '.');
       if (!this._alphanumeric(curChar)) {
         // If not alphanumeric, do not add to final string.
-        console.log('API - Not alphanumeric, not adding.');
       } else {
         // If alphanumeric, add it to final string.
-        console.log('API - Alphanumeric, so adding.');
         strOut += curChar;
       }
-      console.log('API - strOut: ' + strOut + '.');
     }
     return strOut;
   };
@@ -3643,7 +3614,7 @@
         this._sendBlobDataToPeer(data, dataInfo, targetPeerId);
         noOfPeersSent = 1;
       } else {
-        console.log('API - DataChannel [' + targetPeerId + '] does not exists');
+        console.warn('API - DataChannel [' + targetPeerId + '] does not exists');
       }
     } else {
       targetpeerId = this._user.sid;
@@ -3653,7 +3624,7 @@
           this._sendBlobDataToPeer(data, dataInfo, peerId);
           noOfPeersSent++;
         } else {
-          console.log('API - DataChannel [' + peerId + '] does not exists');
+          console.warn('API - DataChannel [' + peerId + '] does not exists');
         }
       }
     }
@@ -3744,11 +3715,9 @@
     };
     self._requestServerInfo('POST', url, function(status, response) {
       if (status !== 200) {
-        console.error('API - Failed ' + lockAction + 'ing room.\nReason was:');
-        console.error('XMLHttpRequest status not OK.\nStatus was: ' + status);
+        console.error('API - Failed - XMLHttpRequest error : ',status);
         return;
       }
-      console.info(response);
       if (response.status) {
         self._room_lock = response.content.lock;
         if (callback) {
@@ -3766,8 +3735,7 @@
           });
         }
       } else {
-        console.error('API - Failed ' + lockAction + 'ing room.\nReason was:');
-        console.error(response.message);
+        console.error('API - Failed ' + lockAction + 'ing room:',response.message);
       }
     }, params);
   };
@@ -3982,7 +3950,7 @@
       ((typeof this._user.info.mediaStatus.videoMuted === 'boolean') ?
       this._user.info.mediaStatus.videoMuted : (options.video || true)) : true;
 
-    console.dir(this._user.info);
+    console.debug("Media User info:",this._user.info);
 
     if (!options.video && !options.audio) {
       return;
@@ -4106,7 +4074,7 @@
    * @since 0.2.0
    */
   Skyway.prototype.joinRoom = function(room, mediaOptions) {
-    console.info(mediaOptions);
+    console.debug("Start to Join the room with the options:",mediaOptions);
     var self = this;
     if (self._in_room) {
       return;
