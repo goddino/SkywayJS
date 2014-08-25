@@ -1717,7 +1717,7 @@
    */
   Skyway.prototype._chatHandler = function(message) {
     this._trigger('chatMessageReceived', message.data,
-      message.sender, (message.target ? true : false), false);
+      message.mid, (message.target ? true : false), false);
   };
 
   /**

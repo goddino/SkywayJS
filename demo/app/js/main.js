@@ -3,9 +3,12 @@
 *********************************************************/
 var Demo = Demo || {};
 Demo.API = {
-  apiKey: '5f874168-0079-46fc-ab9d-13931c2baa39',
-  defaultRoom: 'default',
-  room: 'test',
+  // apiKey: '5f874168-0079-46fc-ab9d-13931c2baa39',
+  // defaultRoom: 'default',
+  // room: 'test',
+  apiKey: 'ce19ec98-f618-4eed-afee-cf26a80640df',
+  defaultRoom: 'xr',
+  room: 'xr',
   files: [],
   FILE_SIZE_LIMIT: (1024 * 1024 * 200),
   peers: 0
@@ -67,7 +70,8 @@ Demo.Skyway = new Skyway();
 Demo.Skyway.init({
   apiKey: Demo.API.apiKey,
   defaultRoom: Demo.API.defaultRoom,
-  room: Demo.API.room
+  room: Demo.API.room,
+  region: Demo.Skyway.REGIONAL_SERVER.SG
 });
 /********************************************************
   Skyway Events

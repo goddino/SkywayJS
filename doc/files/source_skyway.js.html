@@ -1809,7 +1809,7 @@
    */
   Skyway.prototype._chatHandler = function(message) {
     this._trigger(&#x27;chatMessageReceived&#x27;, message.data,
-      message.sender, (message.target ? true : false), false);
+      message.mid, (message.target ? true : false), false);
   };
 
   /**

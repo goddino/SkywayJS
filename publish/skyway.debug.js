@@ -1,4 +1,4 @@
-/*! skywayjs - v0.3.2 - 2014-08-14 */
+/*! skywayjs - v0.3.2 - 2014-08-25 */
 
 (function() {
   /**
@@ -1716,7 +1716,7 @@
    */
   Skyway.prototype._chatHandler = function(message) {
     this._trigger('chatMessageReceived', message.data,
-      message.sender, (message.target ? true : false), false);
+      message.mid, (message.target ? true : false), false);
   };
 
   /**
