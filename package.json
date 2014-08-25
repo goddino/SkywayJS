@@ -36,6 +36,7 @@
     "grunt-replace": "0.4.4",
     "grunt-tape": "0.0.2",
     "tape": "2.12.0",
+    "loglevel" : "*",
     "yuidocjs": "0.3.49"
   },
   "testling": {
