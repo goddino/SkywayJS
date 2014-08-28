@@ -6,9 +6,10 @@ Demo.API = {
   // apiKey: '5f874168-0079-46fc-ab9d-13931c2baa39',
   // defaultRoom: 'default',
   // room: 'test',
-  apiKey: 'ce19ec98-f618-4eed-afee-cf26a80640df',
-  defaultRoom: 'xr',
-  room: 'xr',
+  apiKey: 'ce19ec98-f618-4eed-afee-cf26a80640df',  // xrWeb
+  // apiKey: 'f42f0347-013d-4bdc-83bb-e71e6b956d1e',     // AndroidSDKExample
+  defaultRoom: 'ExampleRoom',
+  room: 'ExampleRoom',
   files: [],
   FILE_SIZE_LIMIT: (1024 * 1024 * 200),
   peers: 0
@@ -191,7 +192,7 @@ Demo.Skyway.on('peerJoined', function (peerId, peerInfo, isSelf){
 Demo.Skyway.on('addPeerStream', function (peerId, stream, isSelf){
   if (!isSelf) {
     Demo.API.peers += 1;
-    if( Demo.API.peers > 2 ){
+    if( Demo.API.peers > 4 ){
       alert('We only support up to 2 streams in this demo');
       Demo.API.peers -= 1;
       return;
