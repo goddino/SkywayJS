@@ -46,21 +46,23 @@ Demo.Elements = {
   fileLog: '#file_log',
   fileBody: '#file_body',
   chatLog: '#chat_log',
-  chatBody: '#chat_body'
+  chatBody: '#chat_body',
+  sendDataChannel: '#send_data_channel'
 };
-Demo.API.displayMsg = function (nick, msg, isPvt, isFile) {
+Demo.API.displayChatMessage = function (peerId, message, isFile) {
   var timestamp = new Date();
   var element = (isFile) ? Demo.Elements.fileLog : Demo.Elements.chatLog;
   var element_body = (isFile) ? Demo.Elements.fileBody : Demo.Elements.chatBody;
   $(element).append(
     '<div class="list-group-item active">' +
     '<p class="list-group-item-heading">' +
-    '<b>' + nick + '</b>' +
+    '<b>' + peerId + '</b>' +
     '<em title="' + timestamp.toString() + '">' + timestamp.getHours() +
     ':' + timestamp.getMinutes() + ':' + timestamp.getSeconds() +
     '</em></p>' +
     '<p class="list-group-item-text">' +
-    (isPvt?'<i>[pvt msg] ':'') + msg + (isPvt?'</i>':'') +
+    (message.isPrivate ? '<i>[pvt msg] ' : '') + message.content +
+    (message.isPrivate ? '</i>' : '') +
     '</p></div>'
   );
   $(element_body).animate({
@@ -78,41 +80,51 @@ Demo.Skyway.init({
   Skyway Events
 *********************************************************/
 //---------------------------------------------------
-Demo.Skyway.on('dataTransferState', function (state, transferId, peerId, transferInfo){
+Demo.Skyway.on('dataTransferState', function (state, transferId, peerId, transferInfo, error){
   transferInfo = transferInfo || {};
   var element = '#' + transferId;
   var name = transferInfo.name;
   var size = transferInfo.size;
   var senderPeerId = transferInfo.senderPeerId;
   var data = transferInfo.data;
+  if (data) {
+    console.info(data);
+    data = URL.createObjectURL(data);
+  }
   var percentage = transferInfo.percentage;
 
   switch (state) {
+  case Demo.Skyway.DATA_TRANSFER_STATE.UPLOAD_REQUEST :
+    var result = confirm('Accept file "' + name + '" [size: ' + size + '] from ' + peerId + '?');
+    Demo.Skyway.respondBlobRequest(peerId, result);
+    break;
   case Demo.Skyway.DATA_TRANSFER_STATE.UPLOAD_STARTED :
-    Demo.API.displayMsg(senderPeerId,
-      '<p><u><b>' + name + '</b></u><br><em>' + size + ' Bytes</em></p>' +
-      '<table id="' + transferId + '" class="table">' +
-      '<thead><tr><th colspan="2"><span class="glyphicon glyphicon-saved">' +
-      '</span> Uploaded Status</th></tr></thead>' +
-      '<tbody></tbody></table>' +
-      '<p><a id="'  + transferId + '_btn" class="btn btn-primary" ' +
-      'href="' + data + '" style="display: block;" download="' + name +
-      '">Download Uploaded File</a></p>',
-      false, true);
-    Demo.API.displayMsg(senderPeerId, 'I\'ve sent a File', false);
+    Demo.API.displayChatMessage(senderPeerId, {
+      content: '<p><u><b>' + name + '</b></u><br><em>' + size + ' Bytes</em></p>' +
+        '<table id="' + transferId + '" class="table">' +
+        '<thead><tr><th colspan="2"><span class="glyphicon glyphicon-saved">' +
+        '</span> Uploaded Status</th></tr></thead>' +
+        '<tbody></tbody></table>' +
+        '<p><a id="'  + transferId + '_btn" class="btn btn-primary" ' +
+        'href="' + data + '" style="display: block;" download="' + name +
+        '">Download Uploaded File</a></p>'
+      }, true);
+    Demo.API.displayChatMessage(senderPeerId, 'I\'ve sent a File', false);
     break;
   case Demo.Skyway.DATA_TRANSFER_STATE.DOWNLOAD_STARTED :
-    Demo.API.displayMsg(senderPeerId,
-      '<p><u><b>' + name + '</b></u><br><em>' + size + ' Bytes</em></p>' +
-      '<div class="progress progress-striped">' +
-      '<div id="' + transferId + '" class="progress-bar ' +
-      '" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"' +
-      ' style="width: 0%">' +
-      '<span>Downloading...</span></div></div>' +
-      '<p><a id="'  + transferId + '_btn" class="btn btn-primary" ' +
-      'href="#" style="display: none;" download="' + name + '">Download File</a></p>',
-      false, true);
-    Demo.API.displayMsg(senderPeerId, 'I\'ve sent you a File', false);
+    Demo.API.displayChatMessage(senderPeerId, {
+      content: '<p><u><b>' + name + '</b></u><br><em>' + size + ' Bytes</em></p>' +
+        '<div class="progress progress-striped">' +
+        '<div id="' + transferId + '" class="progress-bar ' +
+        '" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"' +
+        ' style="width: 0%">' +
+        '<span>Downloading...</span></div></div>' +
+        '<p><a id="'  + transferId + '_btn" class="btn btn-primary" ' +
+        'href="#" style="display: none;" download="' + name + '">Download File</a></p>'
+      }, true);
+    Demo.API.displayChatMessage(senderPeerId, {
+      content: 'I\'ve sent you a File'
+    });
     break;
   case Demo.Skyway.DATA_TRANSFER_STATE.UPLOADING :
     if ($(element).find('.' + peerId).width() < 1) {
@@ -129,7 +141,9 @@ Demo.Skyway.on('dataTransferState', function (state, transferId, peerId, transfe
     $(element).find('span').html(percentage + ' %');
     break;
   case Demo.Skyway.DATA_TRANSFER_STATE.UPLOAD_COMPLETED :
-    Demo.API.displayMsg(peerId, 'Peer ' + peerId + ' has received your file "' + name + '"');
+    Demo.API.displayChatMessage(peerId, {
+      content: 'Peer ' + peerId + ' has received your file "' + name + '"'
+    });
     $(element).find('.' + peerId).html('&#10003;');
     break;
   case Demo.Skyway.DATA_TRANSFER_STATE.DOWNLOAD_COMPLETED :
@@ -142,18 +156,30 @@ Demo.Skyway.on('dataTransferState', function (state, transferId, peerId, transfe
     alert('User "' + peerId + '" has rejected your file');
     break;
   case Demo.Skyway.DATA_TRANSFER_STATE.ERROR :
-    alert('File for ' + transferInfo.type + ' failed to send. Reason: \n' +
-      transferInfo.message);
+    alert('File for ' + error.transferType + ' failed to send. Reason: \n' +
+      error.message);
   }
 });
 //---------------------------------------------------
-Demo.Skyway.on('chatMessageReceived', function (msg, peerId, isPvt) {
-  Demo.API.displayMsg(peerId, msg, isPvt);
+Demo.Skyway.on('incomingMessage', function (message, peerId, peerInfo, isSelf) {
+  if (message.isDataChannel) {
+    message.content = message.content.header + ': ' + message.content.content;
+    console.info(peerInfo);
+  } else {
+    message.content = message.content.content;
+  }
+  Demo.API.displayChatMessage((isSelf) ? 'You' :
+    peerInfo.userData.displayName, message);
 });
 //---------------------------------------------------
 Demo.Skyway.on('peerJoined', function (peerId, peerInfo, isSelf){
+  console.info(peerInfo);
   if (isSelf) {
     $(Demo.Elements.displayUserId).html(peerId);
+    $('#isAudioMuted').css('color',
+      (peerInfo.mediaStatus.audioMuted) ? 'red' : 'green');
+    $('#isVideoMuted').css('color',
+      (peerInfo.mediaStatus.videoMuted) ? 'red' : 'green');
     $(Demo.Elements.joinRoom).hide();
     $(Demo.Elements.leaveRoomBtn).show();
     $(Demo.Elements.presencePanel).show();
@@ -164,32 +190,38 @@ Demo.Skyway.on('peerJoined', function (peerId, peerInfo, isSelf){
       $(Demo.Elements.fileListPanel).show();
     }
   } else {
-    Demo.API.displayMsg('System', 'Peer ' + peerId + ' joined the room');
+    Demo.API.displayChatMessage('System', {
+      content: 'Peer ' + peerId + ' joined the room'
+    });
     var newListEntry = '<tr id="user' + peerId + '" class="badQuality">' +
-      '<td class="name">[' +
-      ((peerInfo.mediaStatus.audioMuted) ? 'NA' : 'A') +
-      '] ' + peerInfo.userData.displayName + '</td><td>';
+      '<td class="name">' + peerInfo.userData.displayName + '</td><td>';
     var titleList = [
       'Joined Room', 'Handshake: Welcome', 'Handshake: Offer',
       'Handshake: Answer', 'Candidate Generation state', 'ICE Connection state',
-      'Peer Connection state', 'Data Channel Connection state'
+      'Peer Connection state', 'Data Channel Connection state',
+      'MediaStream: Video', 'MediaStream: Audio'
     ];
     var glyphiconList = [
       'glyphicon-log-in', 'glyphicon-hand-right', 'glyphicon-hand-left',
       'glyphicon-thumbs-up', 'glyphicon-flash', 'glyphicon-magnet',
-      'glyphicon-user', 'glyphicon-link'
+      'glyphicon-user', 'glyphicon-link', 'glyphicon-facetime-video video',
+      'glyphicon-volume-up audio'
     ];
-    for( var i = 0; i < 8; i++) {
+    for( var i = 0; i < 10; i++) {
       newListEntry += '<span class="glyphicon ' + glyphiconList[i] + ' circle ' +
         i + '" title="' + titleList[i] + '"></span>&nbsp;&nbsp;&nbsp;';
     }
     newListEntry += '</td></tr>';
     $('#presence_list').append(newListEntry);
     $('#user' + peerId + ' .0').css('color','green');
+    $('#user' + peerId + ' .video').css('color',
+      (peerInfo.mediaStatus.videoMuted) ? 'red' : 'green');
+    $('#user' + peerId + ' .audio').css('color',
+      (peerInfo.mediaStatus.audioMuted) ? 'red' : 'green');
   }
 });
 //---------------------------------------------------
-Demo.Skyway.on('addPeerStream', function (peerId, stream, isSelf){
+Demo.Skyway.on('incomingStream', function (peerId, stream, isSelf){
   if (!isSelf) {
     Demo.API.peers += 1;
     if( Demo.API.peers > 4 ){
@@ -208,8 +240,13 @@ Demo.Skyway.on('addPeerStream', function (peerId, stream, isSelf){
 });
 //---------------------------------------------------
 Demo.Skyway.on('mediaAccessSuccess', function (stream){
-  attachMediaStream( $(Demo.Elements.localVideo)[0], stream );
+  attachMediaStream($(Demo.Elements.localVideo)[0], stream);
   Demo.Streams.local = $(Demo.Elements.localVideo)[0].src;
+});
+//---------------------------------------------------
+Demo.Skyway.on('mediaAccessError', function (stream){
+  alert((typeof error === 'object') ? error.message :
+    error);
 });
 //---------------------------------------------------
 Demo.Skyway.on('readyStateChange', function (state, error){
@@ -248,13 +285,22 @@ Demo.Skyway.on('readyStateChange', function (state, error){
     $(Demo.Elements.updateUserInput).val(displayName);
     return;
   } else if (state === Demo.Skyway.READY_STATE_CHANGE.ERROR) {
-    alert(error);
+    for (var errorCode in Demo.Skyway.READY_STATE_CHANGE_ERROR) {
+      if (Demo.Skyway.READY_STATE_CHANGE_ERROR[errorCode] ===
+        error.errorCode) {
+        alert('An error occurred parsing and retrieving server code.\n' +
+          'Error was: ' + errorCode);
+        break;
+      }
+    }
   }
   $(Demo.Elements.channelStatus).show();
 });
 //---------------------------------------------------
 Demo.Skyway.on('peerLeft', function (peerId){
-  Demo.API.displayMsg('System', 'Peer ' + peerId + ' has left the room');
+  Demo.API.displayChatMessage('System', {
+    content: 'Peer ' + peerId + ' has left the room'
+  });
   Demo.API.peers -= 1;
   $('video').each( function(){
     if(this.peerId === peerId){
@@ -287,7 +333,7 @@ Demo.Skyway.on('handshakeProgress', function (state, peerId) {
 Demo.Skyway.on('candidateGenerationState', function (state, peerId) {
   var color = 'orange';
   switch( state ){
-    case Demo.Skyway.CANDIDATE_GENERATION_STATE.DONE:
+    case Demo.Skyway.CANDIDATE_GENERATION_STATE.COMPLETED:
       color = 'green'; break;
   }
   $('#user' + peerId + ' .4' ).css('color', color);
@@ -346,11 +392,10 @@ Demo.Skyway.on('peerConnectionState', function (state, peerId) {
 Demo.Skyway.on('dataChannelState', function (state, peerId) {
   var color = 'red';
   switch (state) {
-    case Demo.Skyway.DATA_CHANNEL_STATE.NEW:
     case Demo.Skyway.DATA_CHANNEL_STATE.ERROR:
       color = 'red';
       break;
-    case Demo.Skyway.DATA_CHANNEL_STATE.LOADING:
+    case Demo.Skyway.DATA_CHANNEL_STATE.CONNECTING:
       color = 'orange';
       break;
     case Demo.Skyway.DATA_CHANNEL_STATE.OPEN:
@@ -362,17 +407,21 @@ Demo.Skyway.on('dataChannelState', function (state, peerId) {
 //---------------------------------------------------
 Demo.Skyway.on('peerUpdated', function (peerId, peerInfo, isSelf) {
   if (isSelf) {
-    $(Demo.Elements.updateUserInput).val('[' +
-      ((peerInfo.mediaStatus.audioMuted) ? 'NA' : 'A') + '] ' +
-      peerInfo.userData.displayName);
+    $('#isAudioMuted').css('color',
+      (peerInfo.mediaStatus.audioMuted) ? 'red' : 'green');
+    $('#isVideoMuted').css('color',
+      (peerInfo.mediaStatus.videoMuted) ? 'red' : 'green');
     if (peerInfo.mediaStatus.videoMuted) {
       $(Demo.Elements.localVideo)[0].src = '';
     } else {
       $(Demo.Elements.localVideo)[0].src = Demo.Streams.local;
     }
   } else {
-    $('#user' + peerId +' .name').html('[' + ((peerInfo.mediaStatus.audioMuted) ? 'NA' : 'A') +
-      '] ' + peerInfo.userData.displayName);
+    $('#user' + peerId + ' .video').css('color',
+      (peerInfo.mediaStatus.videoMuted) ? 'red' : 'green');
+    $('#user' + peerId + ' .audio').css('color',
+      (peerInfo.mediaStatus.audioMuted) ? 'red' : 'green');
+    $('#user' + peerId + ' .name').html(peerInfo.userData.displayName);
     $('video').each( function(){
       if ($(this)[0].peerId === peerId) {
         if (peerInfo.mediaStatus.videoMuted) {
@@ -385,12 +434,9 @@ Demo.Skyway.on('peerUpdated', function (peerId, peerInfo, isSelf) {
   }
 });
 //---------------------------------------------------
-Demo.Skyway.on('roomLock', function (status, isLocked, error) {
-  if (!status) {
-    alert(error);
-  } else {
-    $(Demo.Elements.displayLockStatus).html((isLocked) ? 'Locked' : 'Not Locked');
-  }
+Demo.Skyway.on('roomLock', function (isLocked, peerId, peerInfo, isSelf) {
+  $(Demo.Elements.displayLockStatus).html((isLocked) ? 'Locked' : 'Not Locked');
+  console.info(peerInfo);
 });
 //---------------------------------------------------
 Demo.Skyway.on('channelOpen', function () {
@@ -411,7 +457,13 @@ Demo.Skyway.on('channelMessage', function (){
 });
 //---------------------------------------------------
 Demo.Skyway.on('channelError', function (error) {
-  Demo.API.displayMsg('System', 'Channel Error:<br>' + error);
+  Demo.API.displayChatMessage('System', {
+    content: 'Channel Error:<br>' + error
+  });
+});
+//---------------------------------------------------
+Demo.Skyway.on('mediaAccessError', function (error) {
+  alert(error);
 });
 /********************************************************
   DOM Events
@@ -423,8 +475,16 @@ $(document).ready(function () {
   $(Demo.Elements.chatInput).keyup(function(e) {
     e.preventDefault();
     if (e.keyCode === 13) {
-      //Demo.Skyway.sendDataChannelChatMsg( $(Demo.Elements.chatInput).val() );
-      Demo.Skyway.sendChatMessage( $(Demo.Elements.chatInput).val() );
+      if ($(Demo.Elements.sendDataChannel).prop('checked')) {
+        Demo.Skyway.sendP2PMessage({
+          header: '[DC]',
+          content: $(Demo.Elements.chatInput).val()
+        });
+      } else {
+        Demo.Skyway.sendMessage({
+          content: $(Demo.Elements.chatInput).val()
+        });
+      }
       $(Demo.Elements.chatInput).val('');
     }
   });
@@ -460,14 +520,10 @@ $(document).ready(function () {
   });
   //---------------------------------------------------
   $(Demo.Elements.updateUserBtn).click(function () {
-    try {
-      var displayName = $(Demo.Elements.updateUserInput).val();
-      var userData = Demo.Skyway.getUserData();
-      userData.userData.displayName = displayName;
-      Demo.Skyway.setUserData(userData.userData);
-    } catch (err) {
-      alert('Invalid JSON provided');
-    }
+    var displayName = $(Demo.Elements.updateUserInput).val();
+    var userData = Demo.Skyway.getUserData();
+    userData.displayName = displayName;
+    Demo.Skyway.setUserData(userData);
   });
   //---------------------------------------------------
   $(Demo.Elements.lockBtn).click(function () {
