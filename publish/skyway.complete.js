@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-/*! skywayjs - v0.3.2 - 2014-08-28 */
-=======
-/*! skywayjs - v0.4.1 - 2014-08-27 */
->>>>>>> 0.4.2
+/*! skywayjs - v0.4.1 - 2014-09-01 */
 
 !function(e){"object"==typeof exports?module.exports=e():"function"==typeof define&&define.amd?define(e):"undefined"!=typeof window?window.io=e():"undefined"!=typeof global?global.io=e():"undefined"!=typeof self&&(self.io=e())}(function(){var define,module,exports;
 return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);throw new Error("Cannot find module '"+o+"'")}var f=n[o]={exports:{}};t[o][0].call(f.exports,function(e){var n=t[o][1][e];return s(n?n:e)},f,f.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
@@ -9267,31 +9263,9 @@ if (webrtcDetectedBrowser.mozWebRTC) {
   };
 
   /**
-<<<<<<< HEAD
-   * Throw an event with the received chat message
-   * @method _chatHandler
-   * @param {JSON} message
-   * @param {String} message.rid RoomId
-   * @param {String} message.mid TargetMid.
-   * @param {String} message.target targetPeerId. For private message
-   * @param {String} message.data Chat message
-   * @param {String} message.sender senderPeerId
-   * @param {String} message.type Message type
-   * @trigger chatMessageReceived
-   * @private
-   */
-  Skyway.prototype._chatHandler = function(message) {
-    this._trigger('chatMessageReceived', message.data,
-      message.mid, (message.target ? true : false), false);
-  };
-
-  /**
-   * Signaling server error message
-=======
    * Signaling server sends an error message.
    * - SIG_TYPE: ERROR
    * - This occurs when an error was thrown by the signaling server.
->>>>>>> 0.4.2
    * @method _errorHandler
    * @param {JSON} message The message object received.
    * @param {String} message.rid RoomId of the connected room.

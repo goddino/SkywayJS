@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-/*! skywayjs - v0.3.2 - 2014-08-28 */
-=======
-/*! skywayjs - v0.4.1 - 2014-08-27 */
->>>>>>> 0.4.2
+/*! skywayjs - v0.4.1 - 2014-09-01 */
 
 (function() {
   /**
@@ -2189,31 +2185,9 @@
   };
 
   /**
-<<<<<<< HEAD
-   * Throw an event with the received chat message
-   * @method _chatHandler
-   * @param {JSON} message
-   * @param {String} message.rid RoomId
-   * @param {String} message.mid TargetMid.
-   * @param {String} message.target targetPeerId. For private message
-   * @param {String} message.data Chat message
-   * @param {String} message.sender senderPeerId
-   * @param {String} message.type Message type
-   * @trigger chatMessageReceived
-   * @private
-   */
-  Skyway.prototype._chatHandler = function(message) {
-    this._trigger('chatMessageReceived', message.data,
-      message.mid, (message.target ? true : false), false);
-  };
-
-  /**
-   * Signaling server error message
-=======
    * Signaling server sends an error message.
    * - SIG_TYPE: ERROR
    * - This occurs when an error was thrown by the signaling server.
->>>>>>> 0.4.2
    * @method _errorHandler
    * @param {JSON} message The message object received.
    * @param {String} message.rid RoomId of the connected room.
