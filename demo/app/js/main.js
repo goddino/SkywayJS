@@ -2,15 +2,19 @@
   API Settings
 *********************************************************/
 var Demo = Demo || {};
+var apiKeyXr = 'ce19ec98-f618-4eed-afee-cf26a80640df'; // xrWeb
+// var apiKeyXr = 'f42f0347-013d-4bdc-83bb-e71e6b956d1e'; // AndroidSDKExample
+// var roomXr = 'ExampleRoom';
+var roomXr = 'xiangrong@temasys.com.sg';
+
 Demo.API = {
   // Get your API key at: developer.temasys.com.sg
   // apiKey: '5f874168-0079-46fc-ab9d-13931c2baa39',
   // defaultRoom: 'default',
   // room: 'test',
-  apiKey: 'ce19ec98-f618-4eed-afee-cf26a80640df',  // xrWeb
-  // apiKey: 'f42f0347-013d-4bdc-83bb-e71e6b956d1e',     // AndroidSDKExample
-  defaultRoom: 'ExampleRoom',
-  room: 'ExampleRoom',
+  apiKey: apiKeyXr,
+  defaultRoom: roomXr,
+  room: roomXr,
   files: [],
   FILE_SIZE_LIMIT: (1024 * 1024 * 200),
   peers: 0
@@ -163,12 +167,7 @@ Demo.Skyway.on('dataTransferState', function (state, transferId, peerId, transfe
 });
 //---------------------------------------------------
 Demo.Skyway.on('incomingMessage', function (message, peerId, peerInfo, isSelf) {
-  if (message.isDataChannel) {
-    message.content = message.content.header + ': ' + message.content.content;
-    console.info(peerInfo);
-  } else {
-    message.content = message.content.content;
-  }
+  if( message.isDataChannel ) message.content = "[DC] " + message.content;
   Demo.API.displayChatMessage((isSelf) ? 'You' :
     peerInfo.userData.displayName, message);
 });
@@ -477,14 +476,9 @@ $(document).ready(function () {
     e.preventDefault();
     if (e.keyCode === 13) {
       if ($(Demo.Elements.sendDataChannel).prop('checked')) {
-        Demo.Skyway.sendP2PMessage({
-          header: '[DC]',
-          content: $(Demo.Elements.chatInput).val()
-        });
+        Demo.Skyway.sendP2PMessage( $(Demo.Elements.chatInput).val() );
       } else {
-        Demo.Skyway.sendMessage({
-          content: $(Demo.Elements.chatInput).val()
-        });
+        Demo.Skyway.sendMessage($(Demo.Elements.chatInput).val());
       }
       $(Demo.Elements.chatInput).val('');
     }
