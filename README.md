@@ -23,7 +23,10 @@ Please read how you can find help, contribute and support us advancing SkywayJS 
 - Install `grunt-cli` (See: http://gruntjs.com/getting-started)
 - Run `npm install` to install dev dependencies.
 - Run `npm install -g browserify` and `npm install -g testling` (might require sudo) to install the necessary tools to test locally
-- Run `npm start` to start a local webserver to be able access the demo and doc folders (WebRTC won't work from your local file-system). This will popup Chrome (Mac). You can configure a different browsers in the `start.sh` file.
+- Start a local webserver to be able access the demo and doc folders (WebRTC won't work from your local file-system). This will popup Chrome (Mac).
+  - On Mac, Run `npm start`.
+    - You can configure a different browsers in the `start.sh` file.
+  - On Windows, Run `node server`.
 
 ## Development
 
