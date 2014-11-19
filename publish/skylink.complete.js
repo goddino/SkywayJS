@@ -9167,7 +9167,7 @@ Skylink.prototype._startPeerConnectionHealthCheck = function (peerId) {
     self._stopPeerConnectionHealthCheck(peerId);
   }
 
-  self._peerConnectionHealthTimers[peerId] = setTimeout(function () {
+  /*self._peerConnectionHealthTimers[peerId] = setTimeout(function () {
     // re-handshaking should start here.
     if (!self._peerConnectionHealth[peerId]) {
       log.warn([peerId, 'PeerConnectionHealth', null, 'Peer\'s health timer ' +
@@ -9182,7 +9182,7 @@ Skylink.prototype._startPeerConnectionHealthCheck = function (peerId) {
       // do a complete clean
       self._restartPeerConnection(peerId, true);
     }
-  }, 10000);
+  }, 18000);*/
 };
 
 /**
@@ -9944,7 +9944,8 @@ Skylink.prototype._parseInfo = function(info) {
   this._key = info.cid;
   this._apiKeyOwner = info.apiOwner;
 
-  this._signalingServer = info.ipSigserver;
+  // this._signalingServer = info.ipSigserver;
+  this._signalingServer = "192.168.1.125";
 
   this._user = {
     uid: info.username,
@@ -11391,9 +11392,10 @@ Skylink.prototype._createSocket = function () {
   var self = this;
   self._signalingServerProtocol = (self._forceSSL) ?
     'https:' : self._signalingServerProtocol;
-  self._signalingServerPort = (self._forceSSL) ?
+  // self._signalingServerPort = (self._forceSSL) ?
+  self._signalingServerPort = 9000/* ?
     ((self._signalingServerPort !== 3443) ? 443 : 3443) :
-    self._signalingServerPort;
+    self._signalingServerPort;*/
   var ip_signaling = self._signalingServerProtocol + '//' +
     self._signalingServer + ':' + self._signalingServerPort;
 
